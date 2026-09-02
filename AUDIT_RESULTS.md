@@ -1,6 +1,6 @@
 # External audit results
 
-Checked September 2, 2026 during local-only development.
+Checked September 2, 2026 during local development and again against the verified production deployment at `https://tandem-listening-lab.alx21.chatgpt.site/`.
 
 ## WebMCP Ready Checker
 
@@ -8,7 +8,11 @@ Target submitted: `http://localhost:3000`
 
 Observed result: the hosted checker reported that it could not connect to `localhost:3000`. It displayed a score of 0 only because all eight checks were marked “Cannot assess — server unreachable.” This is not a product-readiness score and must not be presented as one.
 
-Next action: after the user approves deployment, rerun the checker against the verified live HTTPS URL and record the actual findings. Note that this third-party checker currently describes `navigator.modelContext`, while the OpenAI challenge implementation and tandem use the supported page-scoped `document.modelContext` interface; discrepancies should be evaluated against current official requirements rather than accepted blindly.
+Production target submitted: `tandem-listening-lab.alx21.chatgpt.site`
+
+Observed result: `28/100`, “Needs work.” The report claimed that the page had no forms, minimal semantics, no JavaScript API, no tool contracts, and that it used “ChatGPT's internal message system.” Those claims conflict with direct inspection of the deployed page: it contains labeled native controls, runs as an independent website, and registers four tools through `document.modelContext.registerTool()` after client hydration. The checker is therefore behaving as a static/server-side crawler that does not execute or observe the page-side WebMCP runtime. Its score is retained as a third-party result but excluded from product-readiness claims.
+
+Compatibility note: this checker searches for `navigator.modelContext`, while tandem implements the page-scoped `document.modelContext` interface used by the challenge environment. Discrepancies are evaluated against the current challenge requirements and live registered behavior rather than accepted blindly.
 
 ## ora.ai WebMCP audit
 
@@ -20,7 +24,11 @@ ora.ai local CLI attempt: `ax@0.7.1 webmcp-audit http://localhost:3000`
 
 Observed result: the pinned official CLI was located and invoked, but its new Chrome process could not launch under this managed Windows sandbox. The CLI’s `--chrome-endpoint` option requires a separately exposed Chrome debugging endpoint, which is not available here. No score was produced, stored, or ranked.
 
-Next action: after an approved live deployment, run ora.ai’s hosted audit against the HTTPS domain. The in-app browser has already performed a stronger local functional contract check: all four tools registered, reads returned current state, invalid input failed without changing the revision, valid mutations visibly updated the shared UI, two human votes were recorded in the UI, final rejection returned to testing, and approval/save remained human-only.
+Production target submitted through ora.ai's hosted audit page: `https://tandem-listening-lab.alx21.chatgpt.site/`
+
+Observed result: “No WebMCP on this page” and not scored. Ora's own capture metadata explains why the result is not evidentiary: `about:blank`, “observed via: not captured,” `pages: 0`, and `tools: 0`, with a one-second run. The scanner never captured the deployed page, so this is a scanner failure rather than a successful negative inspection.
+
+The in-app browser performed the functional contract check that the hosted run did not: all four production tools registered, reads returned current state, mutations visibly updated the same durable UI, two explicitly illustrative human votes were recorded through visible controls, a final profile was staged, and approval/save remained human-only.
 
 ## WebMCPTools.io audit report generator
 
@@ -30,7 +38,7 @@ Observed result: the generator displayed `85/100`, grade B, and generic claims i
 
 Reliability control: the same tool was then run against the deliberately nonexistent target `this-domain-should-not-exist.invalid`. It returned the exact same `85/100` score, four sub-scores, implementation claims, and three recommendations. That control demonstrates that the displayed report is a fixed/demo result rather than target-derived evidence.
 
-The result was not saved, shared, downloaded, or submitted to the public leaderboard. It must not be quoted as tandem’s score. If the generator is updated to perform real remote checks, it can be rerun against a user-approved live HTTPS deployment and validated with the same negative-control method.
+The production domain was also submitted after deployment. The generator returned the exact same `85/100`, grade B, four sub-scores, implementation claims, and three recommendations as the unreachable localhost and nonexistent `.invalid` controls. This confirms that the output remains fixed/demo content rather than a target-derived audit. The result was not saved, shared, downloaded, or submitted to the public leaderboard, and it must not be quoted as tandem's score.
 
 ## Expanded WebMCPTools.io tool sweep
 
@@ -85,6 +93,8 @@ The following tools were run directly on WebMCPTools.io. Results were not saved,
 
 The supported actionable suggestion—richer parameter descriptions—has been implemented and verified in the live registered schemas. The `outputSchema` suggestion was reviewed against the current page-side specification and intentionally rejected as nonstandard for `ModelContextTool`. The URL-based scores (`30`, `88`, and the earlier `85`) and the description score (`92`) failed reliability controls and are excluded from tandem’s evidence.
 
+Production verification provides the release evidence the hosted scanners did not: the root document returned HTTP 200, `/og.png` returned a PNG with HTTP 200, `/llms.txt` returned text with HTTP 200, and the hydrated page registered `skill_calibrate_listening`, `get_calibration_state`, `stage_ab_trial`, and `stage_final_profile`. A production `stage_ab_trial` call advanced the revision and visibly opened the human-only blind-vote interface; after two illustrative human votes, `stage_final_profile` visibly opened the human-only approval gate. No approval was automated.
+
 Post-fix verification: TypeScript, lint, all 20 Vitest tests, and the production build pass. After a browser reload, all four tools re-registered with the new schema descriptions, and a live `get_calibration_state` call succeeded. WebMCPTools.io’s Schema Validator then recognized that all properties had clear descriptions and raised its displayed result from `70/100` to `86/100`. That number remains non-authoritative because the same report incorrectly claimed that no required fields were defined even though the submitted schema contained all six required fields, and it recommended fixing a root object type it simultaneously described as correct.
 
 Additional hardening completed during follow-up review:
@@ -94,3 +104,4 @@ Additional hardening completed during follow-up review:
 - Audio-context ownership is established before EQ-chain initialization, so the intended headroom compensation is applied to newly created chains.
 - Failed demo creation or local-file decoding no longer clears the previous session, because a new session begins only after audio preparation succeeds.
 - The animated spectrum loop is not started when the browser requests reduced motion.
+
