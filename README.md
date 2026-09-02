@@ -6,6 +6,9 @@ tandem is a local-first blind listening lab built for human-agent collaboration.
 
 You bring your agent. tandem brings the listening lab. Your ears decide.
 
+- Live app: https://tandem-listening-lab.alx21.chatgpt.site/
+- Public source: https://github.com/agammann/tandem-webmcp
+
 ## What works
 
 - Built-in synthesized demo audio and local audio-file decoding with the Web Audio API
@@ -62,7 +65,7 @@ The Playwright suite includes both a complete manual-mode workflow and a mocked 
 
 There are intentionally no tools for unlocking audio, listening, voting, entering subjective feedback, approving/rejecting, saving, or exporting.
 
-See [WEBMCP.md](./WEBMCP.md) for the contract, lifecycle, and test details, and [AUDIT_RESULTS.md](./AUDIT_RESULTS.md) for the truthful local results from WebMCP Ready Checker and ora.ai.
+See [WEBMCP.md](./WEBMCP.md) for the contract, lifecycle, and test details, and [AUDIT_RESULTS.md](./AUDIT_RESULTS.md) for the local and hosted verification record, including third-party scanner limitations.
 
 ## Privacy and safety
 
@@ -73,3 +76,4 @@ See [PRIVACY.md](./PRIVACY.md), [ACCESSIBILITY.md](./ACCESSIBILITY.md), and [ATT
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
