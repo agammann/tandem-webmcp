@@ -18,7 +18,7 @@
 - [x] Local demo audio, A/B switching, final/original comparison, rejection, approval, save, and export click work
 - [x] Keyboard semantics, screen-reader labels, reduced motion, 390×844 mobile layout, contrast, and horizontal overflow checked
 
-## External checks — only after approved deployment
+## External checks
 
 - [x] Local URL submitted to WebMCP Ready Checker; recorded as unreachable rather than misreported as a score
 - [x] ora.ai hosted/local paths attempted; hosted scan requires a domain and local Chrome launch is sandbox-blocked
@@ -27,24 +27,25 @@
 - [x] WebMCPTools.io supported finding fixed: rich descriptions now cover every mutation parameter and nested EQ band
 - [x] WebMCPTools.io `outputSchema` suggestion checked against the current page-side specification and rejected as outside `ModelContextTool`
 - [x] WebMCPTools.io fabricated/fixed scores excluded from release and submission claims
-- [ ] Live root and `/og.png` return successful responses
-- [ ] WebMCP Ready Checker run and findings recorded
-- [ ] ora.ai project review run and findings recorded
-- [ ] A target-derived WebMCPTools.io audit run and findings recorded, if that service adds real remote checks
-- [ ] Live WebMCP reads and mutations verified in a supported agent browser
+- [x] Live root, `/og.png`, and `/llms.txt` return successful responses
+- [x] WebMCP Ready Checker run against production; static-crawler false negatives recorded
+- [x] ora.ai hosted audit run against production; scanner capture failure (`about:blank`, zero pages) recorded
+- [x] WebMCPTools.io audit run against production; fixed/demo `85/100` output rejected using its identical nonexistent-domain control
+- [x] Live WebMCP reads and mutations verified in a supported agent browser
 
 ## Publication — requires user approval
 
-- [ ] Public source repository created
-- [ ] Repository contains all source, docs, MIT license, and setup instructions
-- [ ] Live site deployed and independently verified
+- [x] Public source repository created
+- [x] Repository contains all source, docs, MIT license, and setup instructions
+- [x] Live site deployed and independently verified
 - [ ] Narrated public YouTube demo under three minutes uploaded and playback/audio verified
-- [ ] Real live, repository, and demo URLs replace pending placeholders
+- [ ] Public demo URL replaces the remaining publication note
 
 ## Devpost — requires current record and user-supplied declarations
 
-- [ ] Confirm exact submission id before editing
+- [x] Exact tandem submission identified as `1167620` before editing
 - [ ] Project story, media, captions, tags, judge instructions, and links saved
 - [ ] Eligibility, residence, submitter type, learning level, career impact, and legal declarations supplied by the user rather than inferred
 - [ ] User gives explicit final-action approval
 - [ ] Final page verifies `Project submitted!`, `Submitted`, and `5/5 steps done`
+
