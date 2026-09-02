@@ -38,8 +38,8 @@
 - [x] Public source repository created
 - [x] Repository contains all source, docs, MIT license, and setup instructions
 - [x] Live site deployed and independently verified
-- [ ] Narrated public YouTube demo under three minutes uploaded and playback/audio verified
-- [ ] Public demo URL replaces the remaining publication note
+- [x] Narrated public YouTube demo under three minutes uploaded and playback/audio verified
+- [x] Public demo URL replaces the remaining publication note
 
 ## Devpost — requires current record and user-supplied declarations
 
