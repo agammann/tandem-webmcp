@@ -1,0 +1,21 @@
+# tandem
+
+> A local-first blind listening lab for human-agent collaboration. Your ears are the eval.
+
+## Agent workflow
+
+1. Call `skill_calibrate_listening` before acting.
+2. Call `get_calibration_state` and use its current revision.
+3. Stage a small randomized comparison with `stage_ab_trial`.
+4. Wait for the human to listen and vote in the visible interface.
+5. Read the feedback and stage a narrower second trial.
+6. After at least two trials, call `stage_final_profile`.
+7. Wait for the human to compare, approve or reject, save, and export.
+
+## Boundaries
+
+The agent cannot hear audio and must never select a winner, manufacture subjective feedback, approve or reject a final profile, unlock playback, save a profile, or export a session. These actions have no WebMCP tool and remain human-only.
+
+EQ inputs use five keys: `low`, `warmth`, `presence`, `clarity`, and `air`. Every value must be between −6 and +6 dB in 0.5 dB steps. Mutations require a unique `requestId` and the current `expectedRevision`.
+
+All audio is local and is never uploaded or exposed to tools.
