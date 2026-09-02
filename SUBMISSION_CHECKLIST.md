@@ -44,8 +44,8 @@
 ## Devpost — requires current record and user-supplied declarations
 
 - [x] Exact tandem submission identified as `1167620` before editing
-- [ ] Project story, media, captions, tags, judge instructions, and links saved
-- [ ] Eligibility, residence, submitter type, learning level, career impact, and legal declarations supplied by the user rather than inferred
-- [ ] User gives explicit final-action approval
-- [ ] Final page verifies `Project submitted!`, `Submitted`, and `5/5 steps done`
+- [x] Project story, thumbnail/gallery media, tags, judge instructions, and verified links saved
+- [x] Residence, submitter type, learning level, career impact, and legal declarations supplied by the user rather than inferred
+- [x] User gave explicit final-action approval
+- [x] Final page verifies `Project submitted!`, `SUBMITTED`, `5/5 steps done`, and a checked/disabled agreement
 
