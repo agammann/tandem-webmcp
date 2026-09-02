@@ -50,8 +50,9 @@ Potential future work includes more listening-question templates, user-authored 
 
 ## Links
 
-- Live app: pending user-approved deployment
-- Source repository: pending user-approved publication
-- Public narrated demo: pending user-approved upload
+- Live app: https://tandem-listening-lab.alx21.chatgpt.site/
+- Source repository: https://github.com/agammann/tandem-webmcp
+- Public narrated demo: uploaded as a verified private draft; publication awaits the account holder's action-time confirmation
 
-External WebMCP Ready Checker and ora.ai findings will be added only after those checks actually run against the live project.
+External WebMCP Ready Checker, ora.ai, and WebMCPTools.io were run against the production domain. Their limitations and the stronger live-browser functional evidence are documented in `AUDIT_RESULTS.md`.
+
