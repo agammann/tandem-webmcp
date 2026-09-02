@@ -8,6 +8,7 @@ You bring your agent. tandem brings the listening lab. Your ears decide.
 
 - Live app: https://tandem-listening-lab.alx21.chatgpt.site/
 - Public source: https://github.com/agammann/tandem-webmcp
+- Narrated demo: https://youtu.be/2Z8HO1BMDGs
 
 ## What works
 
