@@ -76,6 +76,7 @@ export interface TandemSession {
   status: SessionStatus;
   audioReady: boolean;
   audioSourceLabel: 'none' | 'tandem demo loop' | 'local audio';
+  audioFingerprint?: string;
   activeTrial: ActiveTrial | null;
   completedTrials: CompletedTrial[];
   stagedFinalProfile: FinalProposal | null;

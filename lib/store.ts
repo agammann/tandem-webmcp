@@ -28,6 +28,7 @@ export function freshSession(): TandemSession {
     status: 'setup',
     audioReady: false,
     audioSourceLabel: 'none',
+    audioFingerprint: undefined,
     activeTrial: null,
     completedTrials: [],
     stagedFinalProfile: null,
@@ -42,7 +43,7 @@ export function freshSession(): TandemSession {
 
 type Store = TandemSession & {
   beginSession: () => void;
-  markAudioReady: (source: 'tandem demo loop' | 'local audio') => void;
+  markAudioReady: (source: 'tandem demo loop' | 'local audio', fingerprint?: string) => void;
   stageTrial: (input: StageTrialInput) => MutationResult;
   recordFeedback: (choice: VoteChoice, tags: FeedbackTag[], note: string) => void;
   stageFinal: (input: StageFinalInput) => MutationResult;
@@ -61,11 +62,12 @@ export const useTandemStore = create<Store>()(
     (set, get) => ({
       ...freshSession(),
       beginSession: () => set(freshSession()),
-      markAudioReady: (source) =>
+      markAudioReady: (source, fingerprint) =>
         set((state) => ({
           audioReady: true,
           audioSourceLabel: source,
-          status: 'audio_ready',
+          audioFingerprint: fingerprint,
+          status: state.status === 'setup' ? 'audio_ready' : state.status,
           revision: state.revision + 1,
           updatedAt: now(),
         })),
@@ -111,7 +113,7 @@ export const useTandemStore = create<Store>()(
       },
       recordFeedback: (choice, tags, note) => {
         const state = get();
-        if (!state.activeTrial || state.status !== 'trial_pending') return;
+        if (!state.audioReady || !state.activeTrial || state.status !== 'trial_pending') return;
         const timestamp = now();
         const feedback = { choice, tags, note: note.slice(0, 280), recordedAt: timestamp };
         const completed = [...state.completedTrials, { ...state.activeTrial, feedback }];
@@ -143,7 +145,7 @@ export const useTandemStore = create<Store>()(
         if (state.completedTrials.length < 2) {
           return mutationResult(state, false, 'minimum_trials: complete at least two trials');
         }
-        if (!['review_ready', 'feedback_recorded'].includes(state.status)) {
+        if (!state.audioReady || !['review_ready', 'feedback_recorded'].includes(state.status)) {
           return mutationResult(state, false, `illegal_state: cannot stage a final profile from ${state.status}`);
         }
         const timestamp = now();
@@ -182,7 +184,7 @@ export const useTandemStore = create<Store>()(
       },
       approveFinal: () => {
         const state = get();
-        if (state.status !== 'final_staged' || !state.stagedFinalProfile) return;
+        if (!state.audioReady || state.status !== 'final_staged' || !state.stagedFinalProfile) return;
         const timestamp = now();
         set({
           approvedProfile: state.stagedFinalProfile.profile,
@@ -214,6 +216,7 @@ export const useTandemStore = create<Store>()(
         status: state.status,
         audioReady: false,
         audioSourceLabel: state.audioSourceLabel,
+        audioFingerprint: state.audioFingerprint,
         activeTrial: state.activeTrial,
         completedTrials: state.completedTrials,
         stagedFinalProfile: state.stagedFinalProfile,
@@ -237,6 +240,6 @@ export function profileForSide(
 }
 
 export function exportableSession(state: TandemSession) {
-  const { processedRequestIds: _processedRequestIds, ...safeState } = state;
-  return safeState;
+  const { processedRequestIds: _processedRequestIds, audioFingerprint: _audioFingerprint, ...safeState } = state;
+  return { ...safeState, activeTrial: state.activeTrial ? { question: state.activeTrial.question, createdAt: state.activeTrial.createdAt } : null };
 }

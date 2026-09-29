@@ -26,6 +26,40 @@ function completeTrial(choice: 'A' | 'B' | 'no_preference' = 'A') {
 beforeEach(() => resetReady());
 
 describe('session state machine', () => {
+  it('restores pending trials without losing the saved comparison or exposing it in exports', () => {
+    stageTrial();
+    const trial = useTandemStore.getState().activeTrial;
+    useTandemStore.setState({ audioReady: false });
+    completeTrial();
+    expect(useTandemStore.getState().completedTrials).toHaveLength(0);
+    useTandemStore.getState().markAudioReady('local audio', 'local-fingerprint');
+    expect(useTandemStore.getState().activeTrial).toEqual(trial);
+    const exported = exportableSession(useTandemStore.getState());
+    expect(exported).not.toHaveProperty('audioFingerprint');
+    expect(exported.activeTrial).not.toHaveProperty('mapping');
+    expect(exported.activeTrial).not.toHaveProperty('candidateOne');
+    useTandemStore.getState().beginSession();
+    expect(useTandemStore.getState()).toMatchObject({ status: 'setup', audioReady: false, activeTrial: null });
+    expect(useTandemStore.getState().audioFingerprint).toBeUndefined();
+  });
+
+  it('requires reloaded audio for final staging and approval while preserving prior feedback', () => {
+    stageTrial('first'); completeTrial();
+    stageTrial('second'); completeTrial();
+    useTandemStore.setState({ audioReady: false });
+    const proposal = () => useTandemStore.getState().stageFinal({ requestId: 'resume-final', expectedRevision: useTandemStore.getState().revision, profile: FLAT_PROFILE, explanation: 'Review the original.' });
+    expect(proposal().ok).toBe(false);
+    useTandemStore.getState().markAudioReady('tandem demo loop');
+    expect(proposal().ok).toBe(true);
+    useTandemStore.setState({ audioReady: false });
+    useTandemStore.getState().approveFinal();
+    expect(useTandemStore.getState().status).toBe('final_staged');
+    useTandemStore.getState().markAudioReady('tandem demo loop');
+    useTandemStore.getState().approveFinal();
+    expect(useTandemStore.getState().status).toBe('approved');
+    expect(useTandemStore.getState().completedTrials).toHaveLength(2);
+  });
+
   it('increments revision for domain changes and follows the required states', () => {
     expect(useTandemStore.getState()).toMatchObject({ revision: 1, status: 'audio_ready' });
     expect(stageTrial().ok).toBe(true);

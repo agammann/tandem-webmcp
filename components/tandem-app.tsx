@@ -5,7 +5,6 @@ import {
   Clipboard,
   Download,
   Headphones,
-  LockKeyhole,
   Pause,
   Play,
   Radio,
@@ -24,7 +23,7 @@ import { EQ_BANDS } from '@/lib/types';
 import { registerTandemTools } from '@/lib/webmcp';
 
 const AGENT_PROMPT =
-  'Help me calibrate this listening session. Read tandem’s calibration skill, inspect the current state, and stage the first blind A/B trial. Do not choose for me.';
+  'Help me compare EQ settings. Read tandem’s listening skill and current state, then stage a small blind A/B trial. Wait for me to listen and vote before adapting the next comparison.';
 
 const FEEDBACK_TAGS: FeedbackTag[] = [
   'Clearer',
@@ -63,7 +62,7 @@ function manualProfiles(index: number): { one: EqProfile; two: EqProfile; questi
     one: { ...FLAT_PROFILE, presence: 1.0, clarity: 1.5 },
     two: { ...FLAT_PROFILE, presence: 0.5, air: 1.0 },
     question: 'Which version keeps detail while feeling less tiring?',
-    rationale: 'This narrows the comparison to presence versus air after the first human judgment.',
+    rationale: 'A fixed guided comparison of presence versus air. An agent can design a custom follow-up from your feedback instead.',
   };
 }
 
@@ -123,6 +122,8 @@ export function TandemApp() {
     selectOutput,
     applyProfiles,
     applyFinalProfile,
+    resetAudio,
+    listenedOutputs,
   } = useAudioEngine();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -132,6 +133,8 @@ export function TandemApp() {
   const [note, setNote] = useState('');
   const [copyStatus, setCopyStatus] = useState('Copy prompt');
   const [notice, setNotice] = useState('Ready to begin a local listening session.');
+  const [loadingAudio, setLoadingAudio] = useState(false);
+  const [confirmNewSession, setConfirmNewSession] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -154,28 +157,34 @@ export function TandemApp() {
   const activeB = useMemo(() => profileForSide(store.activeTrial, 'B'), [store.activeTrial]);
 
   useEffect(() => {
-    if (activeA && activeB) applyProfiles(activeA, activeB);
-  }, [activeA, activeB, applyProfiles]);
+    if (store.audioReady && activeA && activeB) applyProfiles(activeA, activeB);
+  }, [store.audioReady, activeA, activeB, applyProfiles]);
 
   useEffect(() => {
-    if (store.stagedFinalProfile) applyFinalProfile(store.stagedFinalProfile.profile);
-  }, [store.stagedFinalProfile, applyFinalProfile]);
+    if (store.audioReady && store.stagedFinalProfile) applyFinalProfile(store.stagedFinalProfile.profile);
+  }, [store.audioReady, store.stagedFinalProfile, applyFinalProfile]);
 
-  const prepareDemo = useCallback(() => {
-    loadDemo();
-    store.beginSession();
-    useTandemStore.getState().markAudioReady('tandem demo loop');
-    setNotice('Demo loop loaded. Unlock audio when you are ready to listen.');
-  }, [loadDemo, store]);
+  const prepareDemo = useCallback(async () => {
+    setLoadingAudio(true);
+    try {
+      await loadDemo();
+      useTandemStore.getState().markAudioReady('tandem demo loop');
+      setNotice('Demo loop loaded. Press Play when you are ready to listen.');
+    } catch { /* The audio engine displays the error and keeps the session. */ }
+    finally { setLoadingAudio(false); }
+  }, [loadDemo]);
 
   const prepareLocalFile = useCallback(
     async (file: File) => {
-      await loadFile(file);
-      store.beginSession();
-      useTandemStore.getState().markAudioReady('local audio');
-      setNotice('Local audio decoded on this device. It was not uploaded.');
+      setLoadingAudio(true);
+      try {
+        const fingerprint = await loadFile(file, useTandemStore.getState().audioFingerprint);
+        useTandemStore.getState().markAudioReady('local audio', fingerprint);
+        setNotice('Local audio loaded. Press Play when you are ready.');
+      } catch { /* Decode errors are shown by the audio engine. */ }
+      finally { setLoadingAudio(false); }
     },
-    [loadFile, store],
+    [loadFile],
   );
 
   const stageManualTrial = useCallback(() => {
@@ -193,13 +202,13 @@ export function TandemApp() {
   }, []);
 
   const submitFeedback = useCallback(() => {
-    if (!selectedVote) return;
+    if (!selectedVote || !store.audioReady || !listenedOutputs.includes('A') || !listenedOutputs.includes('B')) return;
     useTandemStore.getState().recordFeedback(selectedVote, tags, note);
     setSelectedVote(null);
     setTags([]);
     setNote('');
     setNotice('Human feedback recorded. The A/B mapping is now revealed in the trial history.');
-  }, [note, selectedVote, tags]);
+  }, [note, selectedVote, tags, store.audioReady, listenedOutputs]);
 
   const stageManualFinal = useCallback(() => {
     const current = useTandemStore.getState();
@@ -208,16 +217,26 @@ export function TandemApp() {
       requestId: requestId('final'),
       expectedRevision: current.revision,
       profile: averagedPreferredProfile(),
-      explanation: `Manual fallback averaged the human-preferred profiles across two trials and preserved evidence from: ${feedback}.`,
+      explanation: `A starting suggestion averaged from your choices across ${current.completedTrials.length} trials (${feedback}). A no-preference vote contributes the unchanged profile. Compare it with Original before deciding.`,
     });
     setNotice(result.ok ? 'Manual fallback staged a final profile for your approval.' : result.error ?? 'Could not stage final profile.');
   }, []);
 
   const copyPrompt = useCallback(async () => {
-    await navigator.clipboard.writeText(AGENT_PROMPT);
-    setCopyStatus('Copied');
-    window.setTimeout(() => setCopyStatus('Copy prompt'), 1800);
+    try {
+      await navigator.clipboard.writeText(AGENT_PROMPT);
+      setCopyStatus('Copied');
+      window.setTimeout(() => setCopyStatus('Copy prompt'), 1800);
+    } catch { setNotice('Copy was unavailable. Select and copy the prompt text below.'); }
   }, []);
+
+  const startOver = async () => {
+    await resetAudio();
+    useTandemStore.getState().beginSession();
+    setSelectedVote(null); setTags([]); setNote('');
+    setConfirmNewSession(false);
+    setNotice('New session ready. Choose your audio to begin.');
+  };
 
   const exportSession = useCallback(() => {
     const state = useTandemStore.getState();
@@ -238,6 +257,9 @@ export function TandemApp() {
 
   const canStageTrial = store.audioReady && ['audio_ready', 'feedback_recorded', 'review_ready'].includes(store.status);
   const finalProposal = store.status === 'final_staged' ? store.stagedFinalProfile : null;
+  const restoring = !store.audioReady && store.status !== 'setup';
+  const comparedTrial = store.audioReady && listenedOutputs.includes('A') && listenedOutputs.includes('B');
+  const comparedFinal = store.audioReady && listenedOutputs.includes('A') && listenedOutputs.includes('Original');
 
   return (
     <main className="studio-shell">
@@ -246,7 +268,7 @@ export function TandemApp() {
         <div className="header-statuses">
           <span className={`tool-status ${webmcpStatus === 'available' ? 'online' : ''}`}>
             <Radio size={14} aria-hidden="true" />
-            {webmcpStatus === 'available' ? 'Agent tools available' : 'Manual mode'}
+            {webmcpStatus === 'available' ? 'Agent tools available' : webmcpStatus === 'error' ? 'Agent connection unavailable' : 'Manual mode'}
           </span>
           <span className="privacy-chip"><ShieldCheck size={14} aria-hidden="true" /> local audio · never uploaded</span>
         </div>
@@ -254,8 +276,10 @@ export function TandemApp() {
 
       <section className="intro" aria-labelledby="page-title">
         <p className="eyebrow">a blind listening lab for you + your agent</p>
-        <h1 id="page-title">Your ears are the eval.</h1>
-        <p className="lede">You bring your agent. tandem brings the listening lab. Your ears decide.</p>
+        <h1 id="page-title">Find the sound<br />you prefer.</h1>
+        <p className="lede">Compare two EQ settings without seeing which is which. Your agent sets up the experiment. You listen and choose.</p>
+        <ol className="quick-start"><li>Load a demo or your own audio.</li><li>Compare A and B, then record your preference.</li><li>Try another comparison and review your EQ profile.</li></ol>
+        <a className="primary-action intro-link" href="#workspace">Start listening <Headphones size={18} /></a>
         <div className="session-readout" aria-label="Session status">
           <span>session {store.sessionId.slice(-8)}</span><span>revision {store.revision}</span><span>{STATUS_LABELS[store.status]}</span>
         </div>
@@ -270,6 +294,8 @@ export function TandemApp() {
           <span className="source-label">{store.audioSourceLabel}</span>
         </div>
 
+        {store.status !== 'setup' && <div className="session-actions"><button type="button" className="text-action" disabled={loadingAudio} onClick={() => setConfirmNewSession(true)}><RotateCcw size={16} /> New session</button>{store.completedTrials.length > 0 && store.status !== 'approved' && <button type="button" className="text-action" onClick={exportSession}><Download size={16} /> Export progress JSON</button>}</div>}
+        {confirmNewSession && <section className="reset-panel" aria-label="New session confirmation"><h3>Start a new listening session?</h3><p>This replaces the session saved in this browser. Export your progress first if you want to keep it.</p><div className="final-actions"><button className="secondary-action" type="button" onClick={() => setConfirmNewSession(false)}>Keep this session</button><button className="primary-action" type="button" onClick={() => void startOver()}>Start new session</button></div></section>}
         <canvas
           ref={canvasRef}
           className="waveform-canvas"
@@ -280,11 +306,11 @@ export function TandemApp() {
           <div className="setup-panel">
             <div className="setup-copy">
               <Headphones size={28} aria-hidden="true" />
-              <div><h3>Start a listening session</h3><p>Use the built-in synthesized demo loop or choose an audio file. Local files are decoded in this browser and never uploaded.</p></div>
+              <div><h3>{restoring ? 'Resume your saved session' : 'Start a listening session'}</h3><p>{restoring ? 'Your trials and preferences are saved. Reload the same audio to continue; audio itself is never stored. To use another track, choose New session.' : 'Use the built-in demo or a local audio clip (up to 50 MiB and 10 minutes). Audio stays in this browser.'}</p></div>
             </div>
             <div className="setup-actions">
-              <button className="primary-action" type="button" onClick={prepareDemo}>Load demo audio</button>
-              <button className="secondary-action" type="button" onClick={() => fileInputRef.current?.click()}><Upload size={17} /> Choose local file</button>
+              {(!restoring || store.audioSourceLabel === 'tandem demo loop') && <button className="primary-action" type="button" disabled={loadingAudio} onClick={() => void prepareDemo()}>{loadingAudio ? 'Loading audio…' : restoring ? 'Reload demo audio' : 'Load demo audio'}</button>}
+              {(!restoring || store.audioSourceLabel === 'local audio') && <button className="secondary-action" type="button" disabled={loadingAudio} onClick={() => fileInputRef.current?.click()}><Upload size={17} /> {loadingAudio ? 'Loading audio…' : restoring ? 'Choose original file' : 'Choose local file'}</button>}
               <input
                 ref={fileInputRef}
                 className="visually-hidden"
@@ -294,6 +320,7 @@ export function TandemApp() {
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   if (file) void prepareLocalFile(file);
+                  event.target.value = '';
                 }}
               />
             </div>
@@ -303,7 +330,7 @@ export function TandemApp() {
         {store.audioReady && (
           <div className="transport" aria-label="Audio controls">
             {!isUnlocked ? (
-              <button className="primary-action" type="button" onClick={() => void unlock()}><LockKeyhole size={18} /> Unlock audio</button>
+              <button className="primary-action" type="button" onClick={() => void unlock()}><Play size={18} /> Play audio</button>
             ) : (
               <button className="transport-button" type="button" onClick={() => void togglePlayback()}>
                 {isPlaying ? <Pause size={19} /> : <Play size={19} />} {isPlaying ? 'Pause' : 'Play'}
@@ -315,13 +342,13 @@ export function TandemApp() {
                 <button className={selectedOutput === 'B' ? 'selected' : ''} onClick={() => selectOutput('B')} type="button" aria-pressed={selectedOutput === 'B'}>B</button>
               </div>
             )}
-            {finalProposal && (
+            {(finalProposal || store.status === 'approved') && (
               <div className="ab-switcher final-switcher" aria-label="Compare proposed profile with original audio">
-                <button className={selectedOutput === 'A' ? 'selected' : ''} onClick={() => selectOutput('A')} type="button" aria-pressed={selectedOutput === 'A'}>Proposal</button>
+                <button className={selectedOutput === 'A' ? 'selected' : ''} onClick={() => selectOutput('A')} type="button" aria-pressed={selectedOutput === 'A'}>{store.status === 'approved' ? 'Approved EQ' : 'Proposal'}</button>
                 <button className={selectedOutput === 'Original' ? 'selected' : ''} onClick={() => selectOutput('Original')} type="button" aria-pressed={selectedOutput === 'Original'}>Original</button>
               </div>
             )}
-            <span className="transport-note">One source · synchronized paths · 25 ms crossfade</span>
+            <span className="transport-note">Start at a comfortable volume · synchronized playback</span>
           </div>
         )}
 
@@ -343,7 +370,8 @@ export function TandemApp() {
               ))}
             </div>
             <label className="note-field">Optional note<textarea maxLength={280} value={note} onChange={(event) => setNote(event.target.value)} placeholder="e.g. A opened the vocal, but cymbals felt sharp" /></label>
-            <button className="primary-action" type="button" disabled={!selectedVote} onClick={submitFeedback}>Record my feedback</button>
+            {!comparedTrial && <p className="listening-hint">Play both A and B before recording your preference.</p>}
+            <button className="primary-action" type="button" disabled={!selectedVote || !comparedTrial} onClick={submitFeedback}>Record my feedback</button>
           </section>
         )}
 
@@ -352,10 +380,11 @@ export function TandemApp() {
             <div><p className="provenance-label">{finalProposal.requestId.startsWith('manual-') ? 'Manual proposed' : 'Agent proposed'}</p><h3 id="final-title">Final EQ profile</h3><p>{finalProposal.explanation}</p></div>
             <ProfileMeters profile={finalProposal.profile} label="Proposed profile" />
             <div className="final-actions">
-              <button className="primary-action" type="button" onClick={() => { store.approveFinal(); setNotice('Final profile approved by the human.'); }}><Check size={18} /> Approve profile</button>
+              <button className="primary-action" type="button" disabled={!comparedFinal} onClick={() => { store.approveFinal(); setNotice('Final profile approved by the human.'); }}><Check size={18} /> Approve profile</button>
               <button className="secondary-action" type="button" onClick={() => { store.rejectFinal(); setNotice('Proposal rejected. Another blind test can now be staged.'); }}>Reject</button>
               <button className="text-action" type="button" onClick={() => { store.rejectFinal(); setNotice('Ready for another blind test.'); }}><RotateCcw size={16} /> Request another test</button>
             </div>
+            {!comparedFinal && <p className="listening-hint">Play Proposal and Original before approving. Keep the original if it sounds better.</p>}
           </section>
         )}
 
@@ -373,14 +402,14 @@ export function TandemApp() {
         {canStageTrial && (
           <section className="handoff-panel">
             <div><p className="step-label">next handoff</p><h3>{store.completedTrials.length ? 'Ask your agent to adapt' : 'Invite your agent in'}</h3><p>{webmcpStatus === 'available' ? 'The four page tools are registered. Your agent can inspect this revision and stage a safe blind trial.' : 'Manual mode keeps the full human workflow available. You can stage a bounded example comparison below.'}</p></div>
-            <button className="secondary-action" type="button" onClick={stageManualTrial}>Stage example · manual fallback</button>
+            <button className="secondary-action" type="button" onClick={stageManualTrial}>Try a guided comparison</button>
           </section>
         )}
 
-        {store.status === 'review_ready' && (
+        {store.audioReady && store.status === 'review_ready' && (
           <section className="review-ready">
             <div><p className="step-label">two trials complete</p><h3>A final profile can be staged.</h3><p>The agent may use your actual feedback, or you can continue testing.</p></div>
-            <button className="secondary-action" type="button" onClick={stageManualFinal}>Stage final · manual fallback</button>
+            <button className="secondary-action" type="button" onClick={stageManualFinal}>Review a suggested profile</button>
           </section>
         )}
 
@@ -390,7 +419,8 @@ export function TandemApp() {
       <div className="below-grid">
         <section className="agent-card" aria-labelledby="agent-prompt-title">
           <p className="step-label">bring your own agent</p>
-          <h2 id="agent-prompt-title">A prompt with a boundary.</h2>
+          <h2 id="agent-prompt-title">Use your agent, or try it yourself.</h2>
+          <p className="boundary-note">Load your audio first. In a browser with WebMCP, ask your agent to use this page’s tools. Without an agent, use the guided comparisons above. Guided pairs are fixed; an agent can adapt comparisons from your feedback.</p>
           <blockquote>{AGENT_PROMPT}</blockquote>
           <button className="text-action" type="button" onClick={() => void copyPrompt()}><Clipboard size={16} /> {copyStatus}</button>
           <div className="tool-list"><span>read</span><code>skill_calibrate_listening</code><span>read</span><code>get_calibration_state</code><span>change</span><code>stage_ab_trial</code><span>change</span><code>stage_final_profile</code></div>
@@ -416,9 +446,10 @@ export function TandemApp() {
 
       <footer>
         <p><span>Agent staged</span> the experiment. <span>Human preferred</span> the sound. <span>Agent proposed</span> the profile. <span>Human approved</span> the result.</p>
-        <p>Listen first. Decide second.</p>
+        <p><a href="https://github.com/agammann/tandem-webmcp">Source &amp; user guide</a> · <a href="https://github.com/agammann/tandem-webmcp/issues">Report a problem</a></p>
       </footer>
-      <output className="visually-hidden" aria-live="polite" aria-atomic="true">{notice}</output>
+      <p className="product-note">Profiles apply inside tandem only. JSON exports contain settings and feedback, not processed audio. This is a listening preference tool, not a calibrated hearing test; EQ can still change perceived loudness.</p>
+      <output className="session-notice" aria-live="polite" aria-atomic="true">{notice}</output>
     </main>
   );
 }

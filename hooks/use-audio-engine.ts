@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { compensatedGain, FLAT_PROFILE } from '@/lib/eq';
+import { comparisonGain, FLAT_PROFILE } from '@/lib/eq';
 import { EQ_BANDS, type EqProfile } from '@/lib/types';
 
 type Output = 'A' | 'B' | 'Original';
@@ -59,6 +59,7 @@ export function useAudioEngine() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [selectedOutput, setSelectedOutput] = useState<Output>('A');
   const [error, setError] = useState<string | null>(null);
+  const [listenedOutputs, setListenedOutputs] = useState<Output[]>([]);
 
   const setChainProfile = useCallback((chain: EqChain, profile: EqProfile) => {
     const context = contextRef.current;
@@ -66,7 +67,6 @@ export function useAudioEngine() {
     EQ_BANDS.forEach((band, index) => {
       chain.filters[index].gain.setTargetAtTime(profile[band.key], context.currentTime, 0.02);
     });
-    chain.headroomGain.gain.setTargetAtTime(compensatedGain(profile), context.currentTime, 0.025);
   }, []);
 
   const ensureContext = useCallback(() => {
@@ -86,6 +86,7 @@ export function useAudioEngine() {
         return filter;
       });
       const headroomGain = context.createGain();
+      headroomGain.gain.value = comparisonGain(FLAT_PROFILE);
       const outputGain = context.createGain();
       filters.forEach((filter, index) => {
         if (index < filters.length - 1) filter.connect(filters[index + 1]);
@@ -106,11 +107,20 @@ export function useAudioEngine() {
   }, [setChainProfile]);
 
   const attachBuffer = useCallback(
-    (buffer: AudioBuffer) => {
+    async (buffer: AudioBuffer) => {
       const context = ensureContext();
       const chains = chainsRef.current;
       if (!chains) return;
+      await context.suspend();
       sourceRef.current?.stop();
+      sourceRef.current?.disconnect();
+      for (const [name, chain] of Object.entries(chains)) {
+        setChainProfile(chain, FLAT_PROFILE);
+        chain.headroomGain.gain.setValueAtTime(comparisonGain(FLAT_PROFILE), context.currentTime);
+        chain.outputGain.gain.cancelScheduledValues(context.currentTime);
+        chain.outputGain.gain.setValueAtTime(name === 'A' ? 1 : 0, context.currentTime);
+      }
+      setSelectedOutput('A');
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
@@ -120,14 +130,17 @@ export function useAudioEngine() {
       source.start(0);
       sourceRef.current = source;
       setError(null);
+      setIsPlaying(false);
+      setIsUnlocked(false);
+      setListenedOutputs([]);
     },
-    [ensureContext],
+    [ensureContext, setChainProfile],
   );
 
-  const loadDemo = useCallback(() => {
+  const loadDemo = useCallback(async () => {
     try {
       const context = ensureContext();
-      attachBuffer(createDemoBuffer(context));
+      await attachBuffer(createDemoBuffer(context));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create demo audio');
       throw caught;
@@ -135,11 +148,19 @@ export function useAudioEngine() {
   }, [attachBuffer, ensureContext]);
 
   const loadFile = useCallback(
-    async (file: File) => {
+    async (file: File, expectedFingerprint?: string) => {
       try {
+        if (file.size > 50 * 1024 * 1024) throw new Error('Choose an audio file smaller than 50 MiB.');
+        const bytes = await file.arrayBuffer();
+        const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (n) => n.toString(16).padStart(2, '0')).join('');
+        if (expectedFingerprint && fingerprint !== expectedFingerprint) {
+          throw new Error('This is a different file. Choose the original audio to resume, or start a new session.');
+        }
         const context = ensureContext();
-        const decoded = await context.decodeAudioData(await file.arrayBuffer());
-        attachBuffer(decoded);
+        const decoded = await context.decodeAudioData(bytes);
+        if (decoded.duration > 600) throw new Error('Choose a clip no longer than 10 minutes.');
+        await attachBuffer(decoded);
+        return fingerprint;
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'This audio file could not be decoded';
         setError(message);
@@ -154,7 +175,8 @@ export function useAudioEngine() {
     await context.resume();
     setIsUnlocked(true);
     setIsPlaying(true);
-  }, [ensureContext]);
+    setListenedOutputs((current) => current.includes(selectedOutput) ? current : [...current, selectedOutput]);
+  }, [ensureContext, selectedOutput]);
 
   const togglePlayback = useCallback(async () => {
     const context = ensureContext();
@@ -165,8 +187,9 @@ export function useAudioEngine() {
       await context.resume();
       setIsUnlocked(true);
       setIsPlaying(true);
+      setListenedOutputs((current) => current.includes(selectedOutput) ? current : [...current, selectedOutput]);
     }
-  }, [ensureContext]);
+  }, [ensureContext, selectedOutput]);
 
   const selectOutput = useCallback(
     (output: Output) => {
@@ -178,6 +201,9 @@ export function useAudioEngine() {
         chains[name].outputGain.gain.setTargetAtTime(target, context.currentTime, 0.025);
       });
       setSelectedOutput(output);
+      if (context.state === 'running') {
+        setListenedOutputs((current) => current.includes(output) ? current : [...current, output]);
+      }
     },
     [ensureContext],
   );
@@ -189,6 +215,9 @@ export function useAudioEngine() {
       setChainProfile(chains.A, profileA);
       setChainProfile(chains.B, profileB);
       setChainProfile(chains.Original, FLAT_PROFILE);
+      const gain = comparisonGain(profileA, profileB, FLAT_PROFILE);
+      for (const chain of Object.values(chains)) chain.headroomGain.gain.setTargetAtTime(gain, contextRef.current!.currentTime, 0.025);
+      setListenedOutputs([]);
       selectOutput('A');
     },
     [selectOutput, setChainProfile],
@@ -200,10 +229,26 @@ export function useAudioEngine() {
       if (!chains) return;
       setChainProfile(chains.A, profile);
       setChainProfile(chains.Original, FLAT_PROFILE);
+      const gain = comparisonGain(profile, FLAT_PROFILE);
+      for (const chain of Object.values(chains)) chain.headroomGain.gain.setTargetAtTime(gain, contextRef.current!.currentTime, 0.025);
+      setListenedOutputs([]);
       selectOutput('A');
     },
     [selectOutput, setChainProfile],
   );
+
+  const resetAudio = useCallback(async () => {
+    const context = contextRef.current;
+    if (context && context.state !== 'closed') await context.suspend();
+    sourceRef.current?.stop();
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+    setIsPlaying(false);
+    setIsUnlocked(false);
+    setSelectedOutput('A');
+    setListenedOutputs([]);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -245,6 +290,9 @@ export function useAudioEngine() {
       }
       const context = contextRef.current;
       contextRef.current = null;
+      chainsRef.current = null;
+      sourceRef.current = null;
+      analyserRef.current = null;
       if (context && context.state !== 'closed') {
         void context.close().catch(() => undefined);
       }
@@ -264,5 +312,7 @@ export function useAudioEngine() {
     selectOutput,
     applyProfiles,
     applyFinalProfile,
+    resetAudio,
+    listenedOutputs,
   };
 }

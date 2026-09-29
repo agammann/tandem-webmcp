@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FLAT_PROFILE } from '@/lib/eq';
-import { freshSession, useTandemStore } from '@/lib/store';
+import { freshSession, profileForSide, useTandemStore } from '@/lib/store';
 import { EQ_BANDS } from '@/lib/types';
 import { registerTandemTools, tandemTools } from '@/lib/webmcp';
 
@@ -11,6 +11,33 @@ beforeEach(() => {
 });
 
 describe('WebMCP contract', () => {
+  it('reveals the chosen settings only after feedback and tells agents to wait after reload', async () => {
+    const read = tandemTools().find((tool) => tool.name === 'get_calibration_state')!;
+    const state = useTandemStore.getState();
+    state.stageTrial({ requestId: 'mapping-check', expectedRevision: state.revision, question: 'Which?', candidateOne: FLAT_PROFILE, candidateTwo: { ...FLAT_PROFILE, air: 1 }, agentRationale: 'Compare air.' });
+    const preferred = profileForSide(useTandemStore.getState().activeTrial, 'B');
+    useTandemStore.getState().recordFeedback('B', [], 'Test feedback');
+    expect(await read.execute({})).toMatchObject({ humanFeedbackHistory: [{ preferredProfile: preferred }] });
+    useTandemStore.setState({ audioReady: false });
+    expect(await read.execute({})).toMatchObject({ availableActions: ['wait_for_human_audio'], suggestedNextTool: null });
+  });
+
+  it('falls back when async registration fails and aborts partial registrations', async () => {
+    const signals: AbortSignal[] = [];
+    Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool: (_tool: WebMCPTool, options: { signal: AbortSignal }) => {
+      signals.push(options.signal);
+      return Promise.reject(new Error('Registration denied'));
+    } } });
+    const listener = vi.fn();
+    window.addEventListener('tandem:webmcp-status', listener);
+    const cleanup = registerTandemTools();
+    await vi.waitFor(() => expect(listener).toHaveBeenCalled());
+    expect(listener.mock.calls.map(([event]) => (event as CustomEvent).detail)).toEqual([{ available: false, error: 'Registration denied' }]);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    cleanup();
+    window.removeEventListener('tandem:webmcp-status', listener);
+  });
+
   it('defines exactly four tools and no human-only action tool', () => {
     const names = tandemTools().map((tool) => tool.name);
     expect(names).toEqual([

@@ -1,6 +1,3 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
 
 :root {
   --ink: #0c0f0e;
@@ -140,6 +137,17 @@ h1 { margin: 12px 0 20px; max-width: 1050px; font-size: clamp(56px, 9.5vw, 126px
 
 footer { display: flex; justify-content: space-between; gap: 24px; max-width: 1220px; padding: 30px 4px 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 footer p { margin: 0; } footer span { color: var(--paper); }
+footer a { color: var(--signal); }
+.intro { padding-top: clamp(32px, 4vw, 54px); }
+.intro h1 { font-size: clamp(46px, 7vw, 84px); line-height: .98; }
+.intro .lede { font-size: clamp(17px, 2vw, 22px); max-width: 720px; }
+.intro-link { text-decoration: none; margin-top: 12px; }
+.quick-start { display: flex; flex-wrap: wrap; gap: 10px 30px; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.session-actions { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; }
+.reset-panel { padding: 22px; border: 1px solid var(--warning); border-radius: 14px; margin-top: 16px; }
+.reset-panel p, .listening-hint, .product-note { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.product-note { max-width: 1000px; }
+.session-notice { display: block; max-width: 1220px; padding: 12px 0; color: var(--signal); font-size: 14px; line-height: 1.5; }
 .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 860px) {

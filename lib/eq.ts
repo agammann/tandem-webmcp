@@ -34,8 +34,13 @@ export function profilePeak(profile: EqProfile): number {
 }
 
 export function compensatedGain(profile: EqProfile): number {
-  const peak = profilePeak(profile);
+  // Cascaded boosts can overlap; reserve room for the sum, not just one band.
+  const peak = EQ_BANDS.reduce((sum, { key }) => sum + Math.max(0, profile[key]), 0);
   return Math.pow(10, -(peak + 1.5) / 20);
+}
+
+export function comparisonGain(...profiles: EqProfile[]): number {
+  return Math.min(...profiles.map(compensatedGain));
 }
 
 export function profileSummary(profile: EqProfile): string {

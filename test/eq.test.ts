@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { compensatedGain, eqProfileSchema, FLAT_PROFILE, validateProfile } from '@/lib/eq';
+import { comparisonGain, compensatedGain, eqProfileSchema, FLAT_PROFILE, validateProfile } from '@/lib/eq';
 
 describe('EQ safety', () => {
+  it('shares headroom between candidates and reserves room for overlapping boosts', () => {
+    const boosted = { ...FLAT_PROFILE, warmth: 3, presence: 3 };
+    expect(compensatedGain(boosted)).toBeLessThan(compensatedGain({ ...FLAT_PROFILE, warmth: 3 }));
+    expect(comparisonGain(FLAT_PROFILE, boosted)).toBe(compensatedGain(boosted));
+    expect(comparisonGain(boosted, FLAT_PROFILE)).toBe(comparisonGain(FLAT_PROFILE, boosted));
+  });
   it('accepts all five bands at 0.5 dB increments', () => {
     expect(validateProfile({ ...FLAT_PROFILE, low: -6, air: 6, clarity: 1.5 })).toEqual({
       low: -6,
