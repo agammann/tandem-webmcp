@@ -94,7 +94,7 @@ pnpm test:webmcp
 
 Vitest covers EQ limits, shared headroom, revisions, idempotency, session recovery, feedback mapping, registration failure and late registration completion. The seven ordinary Playwright checks use real browser audio nodes. They cover approval/export, reload recovery, local-file errors and identity, mobile layout, restoration after rejecting a proposal, and measured output differences from a decoded 350 Hz clip.
 
-The five native checks use actual browser discovery and execution for all four tools, input and revision refusal, explicit approval controls, saved-session recovery, and page lifecycle restoration. Tools withdraw on `pagehide` and reconnect after a cached `pageshow`. Native APIs and extension transport are not stubbed in that suite. Automated votes are scripted test input, not listening evaluations; the app cannot establish that someone heard or preferred a sound.
+The five native checks use actual browser discovery and execution for all four tools, input and revision refusal, explicit approval controls, saved-session recovery, and page lifecycle restoration. Tools withdraw on `pagehide` and reconnect after a cached `pageshow`. Automated votes are scripted test input, not listening evaluations; the app cannot establish that someone heard or preferred a sound.
 
 Run the browser suites one at a time after building. The native suite starts a separate production preview. In PowerShell, `$env:TANDEM_WEBMCP_CHANNEL = 'msedge'` selects Edge; `TANDEM_WEBMCP_BROWSER` selects an absolute executable path. `TANDEM_WEBMCP_URL` selects an existing deployment. Browser tests use isolated sessions with fictional feedback.
 
