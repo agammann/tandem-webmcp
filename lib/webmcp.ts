@@ -262,28 +262,51 @@ export function tandemTools(): WebMCPTool[] {
 }
 
 export function registerTandemTools(): () => void {
-  const context = typeof document === 'undefined' ? undefined : document.modelContext;
-  if (!context?.registerTool) {
-    window.dispatchEvent(new CustomEvent('tandem:webmcp-status', { detail: { available: false } }));
-    return () => undefined;
-  }
-  const lifecycle = new AbortController();
-  const fail = (error: unknown) => {
-    if (lifecycle.signal.aborted) return;
-    lifecycle.abort();
-    window.dispatchEvent(new CustomEvent('tandem:webmcp-status', {
-      detail: { available: false, error: error instanceof Error ? error.message : 'Tool registration failed' },
-    }));
+  let disposed = false;
+  let registration: AbortController | null = null;
+  const stop = () => {
+    registration?.abort();
+    registration = null;
   };
-  try {
-    const registrations = tandemTools().map((tool) => Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })));
-    void Promise.all(registrations).then(() => {
-      if (!lifecycle.signal.aborted) window.dispatchEvent(new CustomEvent('tandem:webmcp-status', { detail: { available: true } }));
-    }).catch(fail);
-  } catch (error) {
-    fail(error);
-  }
-  return () => lifecycle.abort();
+  const start = () => {
+    stop();
+    const context = typeof document === 'undefined' ? undefined : document.modelContext;
+    if (!context?.registerTool) {
+      window.dispatchEvent(new CustomEvent('tandem:webmcp-status', { detail: { available: false } }));
+      return;
+    }
+    const lifecycle = new AbortController();
+    registration = lifecycle;
+    const fail = (error: unknown) => {
+      if (disposed || registration !== lifecycle || lifecycle.signal.aborted) return;
+      lifecycle.abort();
+      window.dispatchEvent(new CustomEvent('tandem:webmcp-status', {
+        detail: { available: false, error: error instanceof Error ? error.message : 'Tool registration failed' },
+      }));
+    };
+    try {
+      const registrations = tandemTools().map((tool) => Promise.resolve(context.registerTool(tool, { signal: lifecycle.signal })));
+      void Promise.all(registrations).then(() => {
+        if (!disposed && registration === lifecycle && !lifecycle.signal.aborted) window.dispatchEvent(new CustomEvent('tandem:webmcp-status', { detail: { available: true } }));
+      }).catch(fail);
+    } catch (error) {
+      fail(error);
+    }
+  };
+  const onHide = () => {
+    stop();
+    window.dispatchEvent(new CustomEvent('tandem:webmcp-status', { detail: { available: false } }));
+  };
+  const onShow = (event: PageTransitionEvent) => { if (event.persisted) start(); };
+  window.addEventListener('pagehide', onHide);
+  window.addEventListener('pageshow', onShow);
+  start();
+  return () => {
+    disposed = true;
+    window.removeEventListener('pagehide', onHide);
+    window.removeEventListener('pageshow', onShow);
+    stop();
+  };
 }
 
 export function flatProfile(): EqProfile {

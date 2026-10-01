@@ -15,17 +15,22 @@ jobs:
           version: 11.19.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level low
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chrome
       - run: pnpm test:e2e
+      - run: pnpm test:webmcp --reporter=line,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/native-webmcp.json
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: browser-test-results
           path: test-results/

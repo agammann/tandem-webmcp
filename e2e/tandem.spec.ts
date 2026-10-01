@@ -7,6 +7,7 @@ declare global {
     __tandemTestTools: Record<string, { execute(input: unknown): unknown }>;
     __audioContexts: AudioContext[];
     __filters: BiquadFilterNode[];
+    __analysers: AnalyserNode[];
   }
 }
 
@@ -16,10 +17,12 @@ async function configureBrowser(page: Page, mode: 'manual' | 'mock' | 'failure' 
     window.__tandemTestTools = tools;
     window.__audioContexts = [];
     window.__filters = [];
+    window.__analysers = [];
     const NativeAudioContext = window.AudioContext;
     window.AudioContext = class extends NativeAudioContext {
       constructor(options?: AudioContextOptions) { super(options); window.__audioContexts.push(this); }
       createBiquadFilter() { const filter = super.createBiquadFilter(); window.__filters.push(filter); return filter; }
+      createAnalyser() { const analyser = super.createAnalyser(); window.__analysers.push(analyser); return analyser; }
     };
     Object.defineProperty(document, 'modelContext', { configurable: true, value: mode === 'manual' ? undefined : {
       registerTool(tool: { name: string; execute(input: unknown): unknown }, options: { signal: AbortSignal }) {
@@ -155,6 +158,44 @@ function wav(frequency: number) {
   for (let i = 0; i < rate; i++) buffer.writeInt16LE(Math.round(Math.sin(2 * Math.PI * frequency * i / rate) * 5000), 44 + i * 2);
   return { name: 'test.wav', mimeType: 'audio/wav', buffer };
 }
+
+test('EQ changes the measured output of the same decoded looping clip', async ({ page }) => {
+  await configureBrowser(page, 'mock');
+  await page.goto('/');
+  await page.getByLabel('Choose a local audio file').setInputFiles(wav(350));
+  await expect(page.getByRole('button', { name: 'Play audio', exact: true })).toBeVisible();
+  await page.evaluate(async () => {
+    const tools = window.__tandemTestTools;
+    const state = await tools.get_calibration_state.execute({}) as { revision: number };
+    const flat = { low: 0, warmth: 0, presence: 0, clarity: 0, air: 0 };
+    await tools.stage_ab_trial.execute({ requestId: 'measured-eq', expectedRevision: state.revision, question: 'Scripted audio processing check', candidateOne: { ...flat, warmth: 6 }, candidateTwo: { ...flat, warmth: -6 }, agentRationale: 'Check real processing at the warmth band center.' });
+  });
+  await page.getByRole('button', { name: 'Play audio', exact: true }).click();
+  const rms = () => page.evaluate(() => {
+    const analyser = window.__analysers.at(-1)!;
+    const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
+    return Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+  });
+  await expect.poll(() => page.evaluate(() => Math.abs(window.__filters[1].gain.value))).toBeGreaterThan(5.99);
+  await expect.poll(rms).toBeGreaterThan(0.01);
+  const measuredA = await rms();
+  await page.getByRole('button', { name: 'B', exact: true }).click();
+  const gainA = await page.evaluate(() => window.__filters[1].gain.value);
+  if (gainA > 0) await expect.poll(rms).toBeLessThan(measuredA / 2.5);
+  else await expect.poll(rms).toBeGreaterThan(measuredA * 2.5);
+  expect(await page.evaluate(() => window.__audioContexts.at(-1)?.state)).toBe('running');
+});
+
+test('rejecting a proposed profile restores unchanged audio processing', async ({ page }) => {
+  await configureBrowser(page); await loadDemo(page); await completeManualTrials(page);
+  for (const action of ['Reject', 'Request another test']) {
+    await page.getByRole('button', { name: 'Review a suggested profile' }).click();
+    await expect.poll(() => page.evaluate(() => window.__filters.slice(0, 5).some(filter => filter.gain.value > 0.1))).toBe(true);
+    await page.getByRole('button', { name: action, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Try a guided comparison' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__filters.map(filter => Math.round(filter.gain.value * 2) / 2))).toEqual(Array(15).fill(0));
+  }
+});
 
 test('local files stay local, invalid files recover, and resume requires the original file', async ({ page }) => {
   const requests: string[] = [];

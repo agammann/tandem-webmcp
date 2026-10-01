@@ -222,6 +222,11 @@ export function TandemApp() {
     setNotice(result.ok ? 'Manual fallback staged a final profile for your approval.' : result.error ?? 'Could not stage final profile.');
   }, []);
 
+  const rejectProposal = useCallback(() => {
+    useTandemStore.getState().rejectFinal();
+    applyProfiles(FLAT_PROFILE, FLAT_PROFILE);
+  }, [applyProfiles]);
+
   const copyPrompt = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(AGENT_PROMPT);
@@ -381,8 +386,8 @@ export function TandemApp() {
             <ProfileMeters profile={finalProposal.profile} label="Proposed profile" />
             <div className="final-actions">
               <button className="primary-action" type="button" disabled={!comparedFinal} onClick={() => { store.approveFinal(); setNotice('Final profile approved by the human.'); }}><Check size={18} /> Approve profile</button>
-              <button className="secondary-action" type="button" onClick={() => { store.rejectFinal(); setNotice('Proposal rejected. Another blind test can now be staged.'); }}>Reject</button>
-              <button className="text-action" type="button" onClick={() => { store.rejectFinal(); setNotice('Ready for another blind test.'); }}><RotateCcw size={16} /> Request another test</button>
+              <button className="secondary-action" type="button" onClick={() => { rejectProposal(); setNotice('Proposal rejected. Original audio restored; another blind test can now be staged.'); }}>Reject</button>
+              <button className="text-action" type="button" onClick={() => { rejectProposal(); setNotice('Original audio restored. Ready for another blind test.'); }}><RotateCcw size={16} /> Request another test</button>
             </div>
             {!comparedFinal && <p className="listening-hint">Play Proposal and Original before approving. Keep the original if it sounds better.</p>}
           </section>

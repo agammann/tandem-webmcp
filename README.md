@@ -6,6 +6,8 @@ Compare EQ settings, hear the difference, and keep the sound you prefer.
 
 tandem is a browser listening tool. It plays one audio source through two synchronized EQ paths, randomly labels them A and B, and hides their settings until you record a preference. Use the built-in guided comparisons or let a WebMCP-capable browser agent design comparisons from your feedback. No account or API key is required by tandem.
 
+![Example listening workspace with an approved EQ profile](docs/listening-workspace.png)
+
 ## Try it
 
 1. Open the app and choose **Load demo audio** or **Choose local file**. Use headphones or speakers at a comfortable volume.
@@ -13,6 +15,8 @@ tandem is a browser listening tool. It plays one audio source through two synchr
 3. Select **Prefer A**, **Prefer B**, or **No preference**. Add optional tags or a note, then choose **Record my feedback**. Both versions must have been played before the button becomes available.
 4. Complete another comparison. Choose **Review a suggested profile**, then compare **Proposal** with **Original**.
 5. Approve the profile if you prefer it, or reject it and keep testing. **Save approved profile** marks it saved in this browser. **Export session JSON** downloads the settings and feedback for your records.
+
+**Reject** and **Request another test** immediately restore the original audio processing while keeping your completed trials.
 
 The guided mode uses fixed comparison pairs. Its final suggestion averages your chosen profiles and rounds to 0.5 dB; a no-preference vote contributes the unchanged profile. This is a starting point to review, not a prediction of your ideal sound. An agent can use your recorded settings and notes to design different follow-up comparisons.
 
@@ -39,6 +43,8 @@ Session settings and feedback are saved automatically in this browser’s local 
 
 Open tandem in a browser that supports the current `document.modelContext.registerTool` API and provides an agent that can access page tools. The header reports **Agent tools available** only after registration succeeds. This does not mean every assistant or browser can use WebMCP. Ordinary browsers can use the guided controls.
 
+WebMCP is experimental. Chrome 154 needs WebMCP enabled in `chrome://flags/#enable-webmcp`, followed by a browser restart. Automated checks use `--enable-features=WebMCP`. See [Chrome's WebMCP guide](https://developer.chrome.com/docs/ai/webmcp). Native discovery and all four tool calls have been verified on Chrome 154, Edge 154 and Chrome for Testing 155.0.8059.12. Recheck compatibility when adopting newer builds.
+
 Load audio, then ask your agent:
 
 > Read tandem’s listening skill and current state. Stage a small blind comparison. Wait for me to listen and vote, then use my recorded preferred settings and notes to choose the next comparison. After at least two trials, propose a profile for me to review.
@@ -54,7 +60,7 @@ Playback, listening, voting, approval, save, and export remain in the interface.
 
 ## Run locally
 
-Requirements: **Node.js 22.13+** and **pnpm 11.19.0**.
+Requirements: **Node.js 24.15+** and **pnpm 11.19.0**. CI uses Node 24; the test environment requires a recent Node release.
 
 ```bash
 git clone https://github.com/agammann/tandem-webmcp.git
@@ -77,15 +83,22 @@ The production files are in `dist/client`. Serve that directory from a static HT
 ```bash
 pnpm typecheck
 pnpm lint
+pnpm audit --audit-level low
 pnpm test
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm exec playwright install chrome
+pnpm test:webmcp
 ```
 
-Vitest covers EQ limits, shared headroom, revisions, idempotency, session recovery, feedback mapping, and tool registration failure. Playwright runs the production build through manual and mocked-WebMCP workflows, using real browser audio nodes. It checks approval/export, reload recovery, local-file errors and identity, and a mobile layout. Automated test votes are scripted input, not listening evaluations. Mocked registration does not by itself prove compatibility with a particular browser agent.
+Vitest covers EQ limits, shared headroom, revisions, idempotency, session recovery, feedback mapping, registration failure and late registration completion. The seven ordinary Playwright checks use real browser audio nodes. They cover approval/export, reload recovery, local-file errors and identity, mobile layout, restoration after rejecting a proposal, and measured output differences from a decoded 350 Hz clip.
 
-The GitHub workflow runs these checks for pushes and pull requests. Changes to browser support should also be checked in a real WebMCP-enabled client.
+The five native checks use actual browser discovery and execution for all four tools, input and revision refusal, explicit approval controls, saved-session recovery, and page lifecycle restoration. Tools withdraw on `pagehide` and reconnect after a cached `pageshow`. Automated votes are scripted test input, not listening evaluations; the app cannot establish that someone heard or preferred a sound.
+
+Run the browser suites one at a time after building. The native suite starts a separate production preview. In PowerShell, `$env:TANDEM_WEBMCP_CHANNEL = 'msedge'` selects Edge; `TANDEM_WEBMCP_BROWSER` selects an absolute executable path. `TANDEM_WEBMCP_URL` selects an existing deployment. Browser tests use isolated sessions with fictional feedback.
+
+The GitHub workflow runs the checks for pushes and pull requests and retains native JSON results. Changes to browser support should also be checked in a connected browser agent.
 
 ## Contributing
 

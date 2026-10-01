@@ -49,6 +49,32 @@ describe('WebMCP contract', () => {
     expect(names.some((name) => /(^|_)(vote|approve|unlock|save|export)(_|$)/.test(name))).toBe(false);
   });
 
+  it('withdraws on pagehide, ignores late readiness and restores once after cached pageshow', async () => {
+    const signals: AbortSignal[] = [];
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const registerTool = vi.fn((_tool: WebMCPTool, options: { signal: AbortSignal }) => {
+      signals.push(options.signal);
+      return signals.length <= 4 ? pending : Promise.resolve();
+    });
+    Object.defineProperty(document, 'modelContext', { configurable: true, value: { registerTool } });
+    const listener = vi.fn(); window.addEventListener('tandem:webmcp-status', listener);
+    const cleanup = registerTandemTools();
+    window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    release(); await pending; await Promise.resolve(); await Promise.resolve();
+    expect(listener.mock.calls.map(([event]) => (event as CustomEvent).detail)).toEqual([{ available: false }]);
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(2));
+    expect(registerTool).toHaveBeenCalledTimes(8);
+    expect(signals.slice(4).every(signal => !signal.aborted)).toBe(true);
+    expect((listener.mock.calls[1][0] as CustomEvent).detail).toEqual({ available: true });
+    cleanup(); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    expect(registerTool).toHaveBeenCalledTimes(8);
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    window.removeEventListener('tandem:webmcp-status', listener);
+  });
+
   it('marks read-only tools and does not mutate state when they execute', async () => {
     const before = useTandemStore.getState().revision;
     const readTools = tandemTools().filter((tool) => tool.annotations?.readOnlyHint);
@@ -158,9 +184,10 @@ describe('WebMCP contract', () => {
   it('announces manual mode when the browser has no WebMCP implementation', () => {
     const listener = vi.fn();
     window.addEventListener('tandem:webmcp-status', listener);
-    registerTandemTools();
+    const cleanup = registerTandemTools();
     expect(listener).toHaveBeenCalled();
     expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({ available: false });
     window.removeEventListener('tandem:webmcp-status', listener);
+    cleanup();
   });
 });
