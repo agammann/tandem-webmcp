@@ -2,7 +2,7 @@
 
 tandem registers four page tools with `document.modelContext.registerTool`, following the [WebMCP API explainer](https://github.com/webmachinelearning/webmcp/blob/main/README.md). Browser support is evolving. Open the actual app in a compatible browser with an agent that can discover its page tools; a remote MCP client cannot connect to tandem by URL alone.
 
-Registration is asynchronous. The header confirms availability after all four registrations succeed. A missing API or rejected registration leaves the guided UI available. An AbortSignal removes registrations during cleanup, including partial registration failure. Every handler reads current application state, so agent actions update the same workspace the listener sees.
+Registration is asynchronous. The header confirms availability after all four registrations succeed. A missing API or rejected registration leaves the guided UI available. An AbortSignal removes registrations during cleanup, including partial registration failure and `pagehide`. A cached `pageshow` restores the tools; late completions from an earlier registration cannot report readiness. Every handler reads current application state, so agent actions update the same workspace the listener sees.
 
 ## Workflow
 
@@ -57,4 +57,6 @@ The page tools have no playback, vote, approval, save, export, or reset operatio
 
 ## Verification
 
-Run the checks in [README.md](README.md). Unit tests verify schemas, lifecycle, state transitions, and feedback mapping. Browser tests invoke real handlers through a mocked registration API and exercise the audio engine and visible controls. Test feedback is scripted. For a real-client check, discover all four tools, read state, stage a trial on a disposable session, and confirm the visible question and revision. Subjective listening still requires a person.
+Run the checks in [README.md](README.md). Unit tests verify schemas, lifecycle, state transitions, and feedback mapping. The ordinary browser suite invokes real handlers through mocked registration and measures real audio processing. `pnpm test:webmcp` uses native browser discovery and execution for all four tools, including refused inputs, revision checks, pending and approved recovery, and cached page restoration. It uses no WebMCP replacement. Native execution is verified on Chrome 154, Edge 154 and Chrome for Testing 155.0.8059.12.
+
+Test feedback is scripted. For a connected-agent check, discover all four tools, read state, stage a trial on a disposable session, and confirm the visible question and revision. Subjective listening still requires a person.
