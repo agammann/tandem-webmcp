@@ -30,6 +30,7 @@ async function testVote(page: Page) {
   await expect(page.getByRole('button', { name: 'Record my feedback' })).toBeDisabled();
   const play = page.getByRole('button', { name: 'Play audio', exact: true });
   if (await play.isVisible()) await play.click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'A', exact: true }).click();
   await page.getByRole('button', { name: 'B', exact: true }).click();
   await page.getByLabel('Optional note').fill('Scripted test input, not subjective listening feedback.');
