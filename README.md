@@ -43,7 +43,7 @@ Session settings and feedback are saved automatically in this browser’s local 
 
 Open tandem in a browser that supports the current `document.modelContext.registerTool` API and provides an agent that can access page tools. The header reports **Agent tools available** only after registration succeeds. This does not mean every assistant or browser can use WebMCP. Ordinary browsers can use the guided controls.
 
-WebMCP is experimental. Chrome 154 needs WebMCP enabled in `chrome://flags/#enable-webmcp`, followed by a browser restart. Automated checks use `--enable-features=WebMCP`. See [Chrome's WebMCP guide](https://developer.chrome.com/docs/ai/webmcp). Native discovery and all four tool calls have been verified on Chrome 154, Edge 154 and Chrome for Testing 155.0.8059.12. Recheck compatibility when adopting newer builds.
+WebMCP is experimental. Chrome 154 needs WebMCP enabled in `chrome://flags/#enable-webmcp`, followed by a browser restart. Automated checks use `--enable-features=WebMCP`. See [Chrome's WebMCP guide](https://developer.chrome.com/docs/ai/webmcp). Native discovery and all four tool calls have been verified on Chrome 154, Edge 154 and Chrome for Testing 155.0.8059.12. The v1 source checks also pass on Chrome 155.0.8059.39. Recheck compatibility when adopting newer builds.
 
 Load audio, then ask your agent:
 
@@ -57,6 +57,12 @@ Load audio, then ask your agent:
 | `stage_final_profile` | Propose a profile after at least two completed trials |
 
 Playback, listening, voting, approval, save, and export remain in the interface. There is no remote MCP server to connect. See [the WebMCP guide](WEBMCP.md) for inputs, recovery, and an example.
+
+## Stable source release
+
+Download `tandem_1.0.0_source.zip` from [Releases](https://github.com/agammann/tandem-webmcp/releases). Verify it against `SHA256SUMS` before extracting. The ZIP contains the MIT license, frozen dependencies, source, and the developer guides. In PowerShell use `Get-FileHash .\tandem_1.0.0_source.zip -Algorithm SHA256`; on Linux use `sha256sum -c SHA256SUMS`.
+
+Open the extracted folder containing `package.json`, then run `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm preview`. Use the same browser profile and origin when updating; browser storage belongs to that origin. Keep the previous source folder until the new version has loaded your saved session and original audio. The public hosted app is maintained separately from this source release. See [the v1 support and recovery contract](docs/STABILITY.md).
 
 ## Run locally
 
@@ -83,7 +89,7 @@ The production files are in `dist/client`. Serve that directory from a static HT
 ```bash
 pnpm typecheck
 pnpm lint
-pnpm audit --audit-level low
+pnpm security:audit
 pnpm test
 pnpm build
 pnpm exec playwright install chromium
@@ -98,7 +104,7 @@ The five native checks use actual browser discovery and execution for all four t
 
 Run the browser suites one at a time after building. The native suite starts a separate production preview. In PowerShell, `$env:TANDEM_WEBMCP_CHANNEL = 'msedge'` selects Edge; `TANDEM_WEBMCP_BROWSER` selects an absolute executable path. `TANDEM_WEBMCP_URL` selects an existing deployment. Browser tests use isolated sessions with fictional feedback.
 
-The GitHub workflow runs the checks for pushes and pull requests and retains native JSON results. Changes to browser support should also be checked in a connected browser agent.
+The GitHub workflow runs these checks, verifies an independent clean consumer of the packaged ZIP, and retains native JSON results. Only a successful main push can publish a source release; the publisher verifies the current commit, tag, asset checksums, and complete asset set. Changes to browser support should also be checked in a connected browser agent.
 
 ## Contributing
 

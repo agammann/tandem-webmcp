@@ -1,6 +1,6 @@
 {
   "name": "tandem",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": ">=24.15.0"
@@ -16,7 +16,9 @@
     "test:webmcp": "playwright test --config playwright.webmcp.config.ts",
     "lint": "oxlint",
     "format": "oxfmt",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "package:release": "node scripts/package-release.mjs",
+    "security:audit": "node scripts/check-audit.mjs"
   },
   "dependencies": {
     "lucide-react": "1.31.0",
@@ -43,5 +45,6 @@
     "vitest": "^4.1.11"
   },
   "type": "module",
-  "packageManager": "pnpm@11.19.0"
+  "packageManager": "pnpm@11.19.0",
+  "license": "MIT"
 }

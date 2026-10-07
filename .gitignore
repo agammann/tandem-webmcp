@@ -39,3 +39,9 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# release packages
+/release-artifacts/
+
+# raw dependency audit evidence
+/reports/
