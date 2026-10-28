@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAudioEngine } from '@/hooks/use-audio-engine';
 import { FLAT_PROFILE, profileSummary } from '@/lib/eq';
+import { usePersistenceStatus } from '@/lib/persistence';
 import { exportableSession, profileForSide, useTandemStore } from '@/lib/store';
 import type { EqProfile, FeedbackTag, VoteChoice } from '@/lib/types';
 import { EQ_BANDS } from '@/lib/types';
@@ -109,6 +110,7 @@ function ProfileMeters({ profile, label }: { profile: EqProfile; label: string }
 
 export function TandemApp() {
   const store = useTandemStore();
+  const persistence = usePersistenceStatus();
   const {
     canvasRef,
     isPlaying,
@@ -299,7 +301,27 @@ export function TandemApp() {
           <span className="source-label">{store.audioSourceLabel}</span>
         </div>
 
-        {store.status !== 'setup' && <div className="session-actions"><button type="button" className="text-action" disabled={loadingAudio} onClick={() => setConfirmNewSession(true)}><RotateCcw size={16} /> New session</button>{store.completedTrials.length > 0 && store.status !== 'approved' && <button type="button" className="text-action" onClick={exportSession}><Download size={16} /> Export progress JSON</button>}</div>}
+        {(store.status !== 'setup' || persistence.issue) && <div className="session-actions"><button type="button" className="text-action" disabled={loadingAudio} onClick={() => setConfirmNewSession(true)}><RotateCcw size={16} /> New session</button>{store.completedTrials.length > 0 && store.status !== 'approved' && <button type="button" className="text-action" onClick={exportSession}><Download size={16} /> Export progress JSON</button>}</div>}
+        {persistence.issue && <section className="reset-panel" role="alert" aria-label="Session storage warning">
+          <h3>{persistence.issue === 'invalid' ? 'Saved session could not be restored' : 'Current progress is not saved'}</h3>
+          <p>{persistence.issue === 'invalid'
+            ? 'The saved session is damaged or uses an unsupported version. Its original data has been kept unchanged. You can continue in memory, but new progress will not be saved until you confirm New session.'
+            : persistence.issue === 'unavailable'
+              ? 'Browser storage could not be read. Any previous saved session has not been replaced. You can continue in memory, or confirm New session to try saving a replacement.'
+              : 'Browser storage is full or unavailable. Your changes remain in memory, but may be lost when you close or reload this page. Saving will be retried on your next change.'}</p>
+          <p>Export current progress before leaving. JSON is a record, not an importable backup.</p>
+          <div className="final-actions">
+            <button className="secondary-action" type="button" onClick={exportSession}><Download size={16} /> Export current progress JSON</button>
+            {persistence.recoveryData !== null && <button className="text-action" type="button" onClick={() => {
+              const url = URL.createObjectURL(new Blob([persistence.recoveryData!], { type: 'application/json' }));
+              const anchor = document.createElement('a');
+              anchor.href = url; anchor.download = 'tandem-saved-session-recovery.json';
+              document.body.appendChild(anchor); anchor.click(); anchor.remove();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}>Download original saved data</button>}
+          </div>
+          {persistence.recoveryData !== null && <p>Original saved data may contain private notes, audio fingerprints, and hidden trial settings. Keep it private.</p>}
+        </section>}
         {confirmNewSession && <section className="reset-panel" aria-label="New session confirmation"><h3>Start a new listening session?</h3><p>This replaces the session saved in this browser. Export your progress first if you want to keep it.</p><div className="final-actions"><button className="secondary-action" type="button" onClick={() => setConfirmNewSession(false)}>Keep this session</button><button className="primary-action" type="button" onClick={() => void startOver()}>Start new session</button></div></section>}
         <canvas
           ref={canvasRef}
@@ -398,7 +420,7 @@ export function TandemApp() {
             <div className="approved-heading"><span><Check size={18} /></span><div><p className="provenance-label">Human approved</p><h3 id="approved-title">This profile is yours.</h3></div></div>
             <ProfileMeters profile={store.approvedProfile} label="Approved profile" />
             <div className="final-actions">
-              <button className="primary-action" type="button" disabled={store.approvedProfileSaved} onClick={() => { store.saveApprovedProfile(); setNotice('Approved profile saved locally by the human.'); }}><Save size={18} /> {store.approvedProfileSaved ? 'Saved locally' : 'Save approved profile'}</button>
+              <button className="primary-action" type="button" disabled={store.approvedProfileSaved && !persistence.issue} onClick={() => { store.saveApprovedProfile(); setNotice(usePersistenceStatus.getState().issue ? 'Approved profile remains in memory. Export your progress to keep a record.' : 'Approved profile saved locally by the human.'); }}><Save size={18} /> {store.approvedProfileSaved && !persistence.issue ? 'Saved locally' : 'Save approved profile'}</button>
               <button className="secondary-action" type="button" onClick={exportSession}><Download size={18} /> Export session JSON</button>
             </div>
           </section>

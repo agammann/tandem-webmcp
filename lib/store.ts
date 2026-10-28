@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { allowSessionReplacement, sessionStorage, usePersistenceStatus } from './persistence';
 import type {
   EqProfile,
   FeedbackTag,
@@ -61,7 +62,10 @@ export const useTandemStore = create<Store>()(
   persist(
     (set, get) => ({
       ...freshSession(),
-      beginSession: () => set(freshSession()),
+      beginSession: () => {
+        allowSessionReplacement();
+        set(freshSession());
+      },
       markAudioReady: (source, fingerprint) =>
         set((state) => ({
           audioReady: true,
@@ -199,16 +203,23 @@ export const useTandemStore = create<Store>()(
       },
       saveApprovedProfile: () => {
         const state = get();
-        if (state.status !== 'approved' || !state.approvedProfile || state.approvedProfileSaved) return;
+        if (state.status !== 'approved' || !state.approvedProfile) return;
+        if (state.approvedProfileSaved) {
+          if (usePersistenceStatus.getState().issue) set({});
+          return;
+        }
         set({ approvedProfileSaved: true, revision: state.revision + 1, updatedAt: now() });
       },
       clearPersistedSession: () => {
-        useTandemStore.persist.clearStorage();
+        // Replace atomically: a failed write must not first erase the old session.
+        allowSessionReplacement();
         set(freshSession());
       },
     }),
     {
       name: 'tandem-listening-session-v1',
+      version: 0,
+      storage: sessionStorage,
       partialize: (state) => ({
         sessionId: state.sessionId,
         schemaVersion: state.schemaVersion,

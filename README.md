@@ -37,6 +37,8 @@ Audio is synthesized or decoded on your device. tandem does not upload it. Local
 
 Session settings and feedback are saved automatically in this browser’s local storage. Audio is not saved. After refreshing, reload the demo or choose the same local file to continue the existing session. New local-file sessions store a local SHA-256 fingerprint to reject a different track during recovery. Older sessions without a fingerprint cannot make that check. Neither filenames nor fingerprints are exposed to the agent or included in exports.
 
+If saved data cannot be restored or browser storage is full/blocked, a warning explains what is kept and how to export your current progress. Damaged or unsupported saved data stays unchanged until you confirm a replacement; see [storage recovery](docs/STABILITY.md#storage-failures). Changes made while storage is unavailable remain in memory and may be lost on refresh.
+
 **New session** replaces the saved session after confirmation. Export first if you want to keep its history. Clearing browser site data also removes saved progress. Use one tab per session; simultaneous editing across tabs is not supported. See [Privacy](PRIVACY.md).
 
 ## Use with a browser agent
