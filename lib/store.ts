@@ -45,9 +45,9 @@ export function freshSession(): TandemSession {
 type Store = TandemSession & {
   beginSession: () => void;
   markAudioReady: (source: 'tandem demo loop' | 'local audio', fingerprint?: string) => void;
-  stageTrial: (input: StageTrialInput) => MutationResult;
+  stageTrial: (input: StageTrialInput, source?: 'agent' | 'manual') => MutationResult;
   recordFeedback: (choice: VoteChoice, tags: FeedbackTag[], note: string) => void;
-  stageFinal: (input: StageFinalInput) => MutationResult;
+  stageFinal: (input: StageFinalInput, source?: 'agent' | 'manual') => MutationResult;
   rejectFinal: () => void;
   approveFinal: () => void;
   saveApprovedProfile: () => void;
@@ -75,7 +75,7 @@ export const useTandemStore = create<Store>()(
           revision: state.revision + 1,
           updatedAt: now(),
         })),
-      stageTrial: (input) => {
+      stageTrial: (input, source = 'agent') => {
         const state = get();
         if (state.processedRequestIds.includes(input.requestId)) {
           return { ...mutationResult(state, true), duplicate: true };
@@ -107,7 +107,7 @@ export const useTandemStore = create<Store>()(
             ...state.timeline,
             {
               id: id('event'),
-              actor: input.requestId.startsWith('manual-') ? 'Manual staged' : 'Agent staged',
+              actor: source === 'manual' ? 'Manual staged' : 'Agent staged',
               detail: input.question,
               at: timestamp,
             },
@@ -138,7 +138,7 @@ export const useTandemStore = create<Store>()(
           ],
         });
       },
-      stageFinal: (input) => {
+      stageFinal: (input, source = 'agent') => {
         const state = get();
         if (state.processedRequestIds.includes(input.requestId)) {
           return { ...mutationResult(state, true), duplicate: true };
@@ -159,6 +159,7 @@ export const useTandemStore = create<Store>()(
             explanation: input.explanation,
             requestId: input.requestId,
             stagedAt: timestamp,
+            source,
           },
           status: 'final_staged',
           revision: state.revision + 1,
@@ -168,7 +169,7 @@ export const useTandemStore = create<Store>()(
             ...state.timeline,
             {
               id: id('event'),
-              actor: input.requestId.startsWith('manual-') ? 'Manual proposed' : 'Agent proposed',
+              actor: source === 'manual' ? 'Manual proposed' : 'Agent proposed',
               detail: input.explanation,
               at: timestamp,
             },
