@@ -62,7 +62,7 @@ Playback, listening, voting, approval, save, and export remain in the interface.
 
 ## Stable source release
 
-Download `tandem_1.0.0_source.zip` from [Releases](https://github.com/agammann/tandem-webmcp/releases). Verify it against `SHA256SUMS` before extracting. The ZIP contains the MIT license, frozen dependencies, source, and the developer guides. In PowerShell use `Get-FileHash .\tandem_1.0.0_source.zip -Algorithm SHA256`; on Linux use `sha256sum -c SHA256SUMS`.
+Download `tandem_1.0.1_source.zip` from [Releases](https://github.com/agammann/tandem-webmcp/releases). Verify it against `SHA256SUMS` before extracting. The ZIP contains the MIT license, frozen dependencies, source, and the developer guides. In PowerShell use `Get-FileHash .\tandem_1.0.1_source.zip -Algorithm SHA256`; on Linux use `sha256sum -c SHA256SUMS`.
 
 Open the extracted folder containing `package.json`, then run `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm preview`. Use the same browser profile and origin when updating; browser storage belongs to that origin. Keep the previous source folder until the new version has loaded your saved session and original audio. The public hosted app is maintained separately from this source release. See [the v1 support and recovery contract](docs/STABILITY.md).
 

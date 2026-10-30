@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Record the manual or agent source of newly staged trials and final proposals explicitly.
+- Use a neutral label for older final proposals whose source was not stored.
+- Clarify the interface copy for both guided and agent workflows.
+
 ## 1.0.0
 
 - Establish the supported guided and optional native WebMCP workflows as the v1 contract.
