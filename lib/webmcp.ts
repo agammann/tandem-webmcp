@@ -216,7 +216,7 @@ export function tandemTools(): WebMCPTool[] {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute(input) {
         const parsed = stageTrialInput.parse(input);
-        const result = useTandemStore.getState().stageTrial(parsed);
+        const result = useTandemStore.getState().stageTrial(parsed, 'agent');
         if (!result.ok) throw new Error(result.error);
         return {
           ...result,
@@ -250,7 +250,7 @@ export function tandemTools(): WebMCPTool[] {
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute(input) {
         const parsed = stageFinalInput.parse(input);
-        const result = useTandemStore.getState().stageFinal(parsed);
+        const result = useTandemStore.getState().stageFinal(parsed, 'agent');
         if (!result.ok) throw new Error(result.error);
         return {
           ...result,

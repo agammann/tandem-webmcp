@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { exportableSession, freshSession, useTandemStore } from '@/lib/store';
 import { FLAT_PROFILE } from '@/lib/eq';
@@ -66,22 +66,47 @@ it.each([
   expect(localStorage.getItem(KEY)).toBe(raw);
 });
 
-function stage(requestId: string) {
+function stage(requestId: string, source: 'agent' | 'manual' = 'agent') {
   const current = useTandemStore.getState();
   expect(current.stageTrial({
     requestId, expectedRevision: current.revision, question: 'Which?',
     candidateOne: FLAT_PROFILE, candidateTwo: { ...FLAT_PROFILE, air: 1 }, agentRationale: 'Compare air.',
-  }).ok).toBe(true);
+  }, source).ok).toBe(true);
 }
-function complete(requestId: string) {
-  stage(requestId);
+function complete(requestId: string, source: 'agent' | 'manual' = 'agent') {
+  stage(requestId, source);
   useTandemStore.getState().recordFeedback('B', ['Clearer'], 'A private note');
 }
-function final() {
+function final(source: 'agent' | 'manual' = 'agent') {
   const current = useTandemStore.getState();
   expect(current.stageFinal({ requestId: 'final', expectedRevision: current.revision,
-    profile: { ...FLAT_PROFILE, air: 1 }, explanation: 'Review this profile.' }).ok).toBe(true);
+    profile: { ...FLAT_PROFILE, air: 1 }, explanation: 'Review this profile.' }, source).ok).toBe(true);
 }
+
+it('does not guess the actor of a legacy proposal from its request ID', async () => {
+  useTandemStore.getState().markAudioReady('tandem demo loop');
+  complete('first'); complete('second'); final();
+  const envelope = JSON.parse(localStorage.getItem(KEY)!);
+  envelope.state.stagedFinalProfile.requestId = 'manual-looking-legacy';
+  delete envelope.state.stagedFinalProfile.source;
+  localStorage.setItem(KEY, JSON.stringify(envelope));
+  await useTandemStore.persist.rehydrate();
+  expect(usePersistenceStatus.getState().issue).toBeNull();
+  expect(useTandemStore.getState().stagedFinalProfile?.source).toBeUndefined();
+  render(<TandemApp />);
+  const panel = await screen.findByRole('region', { name: 'Final EQ profile' });
+  expect(within(panel).getByText('Proposed', { exact: true })).toBeInTheDocument();
+  expect(screen.queryByText('Manual proposed')).toBeNull();
+});
+
+it('labels a trusted manual proposal without implying an agent handled the session', async () => {
+  useTandemStore.getState().markAudioReady('tandem demo loop');
+  complete('first', 'manual'); complete('second', 'manual'); final('manual');
+  render(<TandemApp />);
+  const panel = await screen.findByRole('region', { name: 'Final EQ profile' });
+  expect(within(panel).getByText('Manual proposed')).toBeInTheDocument();
+  expect(screen.queryByText('Agent staged')).toBeNull();
+});
 
 it.each(['mapping', 'profile', 'feedback', 'timeline', 'proposal'])('rejects damaged nested %s data', async (field) => {
   useTandemStore.getState().markAudioReady('tandem demo loop');

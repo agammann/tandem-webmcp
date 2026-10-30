@@ -125,6 +125,33 @@ describe('WebMCP contract', () => {
     expect(useTandemStore.getState().revision).toBe(before);
   });
 
+  it('attributes tool staging to the agent even when a request ID resembles manual mode', async () => {
+    const trial = tandemTools().find((tool) => tool.name === 'stage_ab_trial')!;
+    const first = useTandemStore.getState();
+    await trial.execute({
+      requestId: 'manual-looking-id', expectedRevision: first.revision,
+      question: 'Which is clearer?', candidateOne: FLAT_PROFILE,
+      candidateTwo: { ...FLAT_PROFILE, clarity: 1 }, agentRationale: 'Synthetic comparison.',
+    });
+    expect(useTandemStore.getState().timeline.at(-1)?.actor).toBe('Agent staged');
+    useTandemStore.getState().recordFeedback('A', [], 'Synthetic feedback');
+    const second = useTandemStore.getState();
+    await trial.execute({
+      requestId: 'second-trial', expectedRevision: second.revision,
+      question: 'Which is warmer?', candidateOne: FLAT_PROFILE,
+      candidateTwo: { ...FLAT_PROFILE, warmth: 1 }, agentRationale: 'Second synthetic comparison.',
+    });
+    useTandemStore.getState().recordFeedback('B', [], 'Synthetic feedback');
+    const proposal = tandemTools().find((tool) => tool.name === 'stage_final_profile')!;
+    await proposal.execute({
+      requestId: 'manual-looking-final', expectedRevision: useTandemStore.getState().revision,
+      profile: FLAT_PROFILE, explanation: 'Synthetic final proposal.',
+    });
+    const state = useTandemStore.getState();
+    expect(state.timeline.at(-1)?.actor).toBe('Agent proposed');
+    expect(state.stagedFinalProfile?.source).toBe('agent');
+  });
+
   it('registers once with schemas and unregisters through AbortSignal', () => {
     const registered: WebMCPTool[] = [];
     const signals: AbortSignal[] = [];

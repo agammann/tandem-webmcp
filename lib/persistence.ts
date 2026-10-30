@@ -41,6 +41,7 @@ const sessionSchema = z.object({
     explanation: z.string(),
     requestId: identifier,
     stagedAt: timestamp,
+    source: z.enum(['agent', 'manual']).optional(),
   }).nullable(),
   approvedProfile: eqProfileSchema.nullable(),
   approvedProfileSaved: z.boolean(),

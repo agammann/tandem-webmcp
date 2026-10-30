@@ -199,7 +199,7 @@ export function TandemApp() {
       candidateOne: next.one,
       candidateTwo: next.two,
       agentRationale: next.rationale,
-    });
+    }, 'manual');
     setNotice(result.ok ? 'Manual fallback staged a randomized blind comparison.' : result.error ?? 'Could not stage trial.');
   }, []);
 
@@ -220,7 +220,7 @@ export function TandemApp() {
       expectedRevision: current.revision,
       profile: averagedPreferredProfile(),
       explanation: `A starting suggestion averaged from your choices across ${current.completedTrials.length} trials (${feedback}). A no-preference vote contributes the unchanged profile. Compare it with Original before deciding.`,
-    });
+    }, 'manual');
     setNotice(result.ok ? 'Manual fallback staged a final profile for your approval.' : result.error ?? 'Could not stage final profile.');
   }, []);
 
@@ -284,7 +284,7 @@ export function TandemApp() {
       <section className="intro" aria-labelledby="page-title">
         <p className="eyebrow">a blind listening lab for you + your agent</p>
         <h1 id="page-title">Find the sound<br />you prefer.</h1>
-        <p className="lede">Compare two EQ settings without seeing which is which. Your agent sets up the experiment. You listen and choose.</p>
+        <p className="lede">Compare two EQ settings without seeing which is which. Stage a guided comparison yourself or invite an agent. You listen and choose.</p>
         <ol className="quick-start"><li>Load a demo or your own audio.</li><li>Compare A and B, then record your preference.</li><li>Try another comparison and review your EQ profile.</li></ol>
         <a className="primary-action intro-link" href="#workspace">Start listening <Headphones size={18} /></a>
         <div className="session-readout" aria-label="Session status">
@@ -404,7 +404,7 @@ export function TandemApp() {
 
         {finalProposal && (
           <section className="final-panel" aria-labelledby="final-title">
-            <div><p className="provenance-label">{finalProposal.requestId.startsWith('manual-') ? 'Manual proposed' : 'Agent proposed'}</p><h3 id="final-title">Final EQ profile</h3><p>{finalProposal.explanation}</p></div>
+            <div><p className="provenance-label">{finalProposal.source === 'manual' ? 'Manual proposed' : finalProposal.source === 'agent' ? 'Agent proposed' : 'Proposed'}</p><h3 id="final-title">Final EQ profile</h3><p>{finalProposal.explanation}</p></div>
             <ProfileMeters profile={finalProposal.profile} label="Proposed profile" />
             <div className="final-actions">
               <button className="primary-action" type="button" disabled={!comparedFinal} onClick={() => { store.approveFinal(); setNotice('Final profile approved by the human.'); }}><Check size={18} /> Approve profile</button>
@@ -472,7 +472,7 @@ export function TandemApp() {
       )}
 
       <footer>
-        <p><span>Agent staged</span> the experiment. <span>Human preferred</span> the sound. <span>Agent proposed</span> the profile. <span>Human approved</span> the result.</p>
+        <p>The timeline shows who staged each trial and profile. Your listening choices and final approval remain yours.</p>
         <p><a href="https://github.com/agammann/tandem-webmcp">Source &amp; user guide</a> · <a href="https://github.com/agammann/tandem-webmcp/issues">Report a problem</a></p>
       </footer>
       <p className="product-note">Profiles apply inside tandem only. JSON exports contain settings and feedback, not processed audio. This is a listening preference tool, not a calibrated hearing test; EQ can still change perceived loudness.</p>

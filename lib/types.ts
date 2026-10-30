@@ -54,6 +54,7 @@ export interface FinalProposal {
   explanation: string;
   requestId: string;
   stagedAt: string;
+  source?: 'agent' | 'manual';
 }
 
 export interface TimelineEvent {

@@ -7,7 +7,7 @@ function resetReady() {
   useTandemStore.getState().markAudioReady('tandem demo loop');
 }
 
-function stageTrial(requestId = 'agent-trial-1') {
+function stageTrial(requestId = 'agent-trial-1', source: 'agent' | 'manual' = 'agent') {
   const state = useTandemStore.getState();
   return state.stageTrial({
     requestId,
@@ -16,7 +16,7 @@ function stageTrial(requestId = 'agent-trial-1') {
     candidateOne: { ...FLAT_PROFILE, clarity: 1 },
     candidateTwo: { ...FLAT_PROFILE, warmth: 1 },
     agentRationale: 'One small clarity-versus-warmth comparison.',
-  });
+  }, source);
 }
 
 function completeTrial(choice: 'A' | 'B' | 'no_preference' = 'A') {
@@ -26,6 +26,20 @@ function completeTrial(choice: 'A' | 'B' | 'no_preference' = 'A') {
 beforeEach(() => resetReady());
 
 describe('session state machine', () => {
+  it('uses the trusted manual entry point for provenance regardless of request ID', () => {
+    stageTrial('agent-looking-first', 'manual');
+    expect(useTandemStore.getState().timeline.at(-1)?.actor).toBe('Manual staged');
+    completeTrial();
+    stageTrial('agent-looking-second', 'manual');
+    completeTrial();
+    const state = useTandemStore.getState();
+    state.stageFinal({
+      requestId: 'agent-looking-final', expectedRevision: state.revision,
+      profile: FLAT_PROFILE, explanation: 'Manual synthetic proposal.',
+    }, 'manual');
+    expect(useTandemStore.getState().timeline.at(-1)?.actor).toBe('Manual proposed');
+    expect(useTandemStore.getState().stagedFinalProfile?.source).toBe('manual');
+  });
   it('restores pending trials without losing the saved comparison or exposing it in exports', () => {
     stageTrial();
     const trial = useTandemStore.getState().activeTrial;
