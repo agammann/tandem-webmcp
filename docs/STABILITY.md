@@ -14,7 +14,7 @@ Export JSON before New session or clearing site data. JSON is a readable record,
 
 ## Developer setup and upgrades
 
-Use Node.js 24.15+ and pnpm 11.19.0. Install the frozen lockfile, build, then preview at `http://localhost:3000`. Deploy `dist/client` at the root of your own HTTPS static origin; no environment variables or server database are required. Do not reuse the maintained Site's project ID.
+For the current development checkout, use Node.js 24.15+ within Node 24 or 26.13.1+ within Node 26, and pnpm 11.19.0. Node 25 is excluded by the current test dependencies. The published v1.0.1 archive predates the Node 26 verification. Install the frozen lockfile, build, then preview at `http://localhost:3000`. Deploy `dist/client` at the root of your own HTTPS static origin; no environment variables or server database are required. Do not reuse the maintained Site's project ID.
 
 When updating a self-hosted copy, export the current session record, retain the old static build, and keep the same origin and browser profile. Replace the static files only after verification; reload, reselect the original audio, and confirm the same trial history and approved profile. If it fails, restore the previous static files. Moving to a new origin will not move browser storage. This v1 release preserves the existing session key and schema.
 

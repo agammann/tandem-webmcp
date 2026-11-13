@@ -68,7 +68,7 @@ Open the extracted folder containing `package.json`, then run `pnpm install --fr
 
 ## Run locally
 
-Requirements: **Node.js 24.15+** and **pnpm 11.19.0**. CI uses Node 24; the test environment requires a recent Node release.
+Requirements for the current development checkout: **Node.js 24.15 or later within Node 24, or Node 26.13.1 or later within Node 26**, and **pnpm 11.19.0**. CI checks both minimum versions, including browser and clean-source consumer tests. Node 25 is not supported by the current test dependencies. The published v1.0.1 archive predates the Node 26 checks; its original verification used Node 24.
 
 ```bash
 git clone https://github.com/agammann/tandem-webmcp.git
