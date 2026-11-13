@@ -59,6 +59,7 @@ export async function verifyActionCompatibility() {
   await publish({ github, context, core });
   assert.equal(tag, sha);
   assert.equal(release.draft, false);
-  assert.deepEqual(assets.map(asset => asset.name).sort(),
-    ['SHA256SUMS', `tandem_${version}_source.zip`, `tandem_${version}_source.zip.sha256`].sort());
+  const byName = (a, b) => a.localeCompare(b);
+  assert.deepEqual(assets.map(asset => asset.name).sort(byName),
+    ['SHA256SUMS', `tandem_${version}_source.zip`, `tandem_${version}_source.zip.sha256`].sort(byName));
 }
