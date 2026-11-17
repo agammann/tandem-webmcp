@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- Deliver the current compatible dependency and Node 24/26 verification contract in a checksummed source archive.
+- Patch Vite 8.2.4 to 8.3.7 with patched Rolldown for GHSA-p4f5-76q4-ffq7, which concerns explicitly network-exposed development servers. Keep localhost development defaults and static hosting.
+- Preserve the existing audio model, guided and native workflows, four tools, explicit playback/feedback/approval controls, session schema, and origin-bound recovery.
+
 ## 1.0.1
 
 - Record the manual or agent source of newly staged trials and final proposals explicitly.
