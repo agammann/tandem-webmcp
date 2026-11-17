@@ -62,13 +62,13 @@ Playback, listening, voting, approval, save, and export remain in the interface.
 
 ## Stable source release
 
-Download `tandem_1.0.2_source.zip` from [v1.0.2](https://github.com/agammann/tandem-webmcp/releases/tag/v1.0.2). Verify it against `SHA256SUMS` before extracting. The ZIP contains the MIT license, frozen dependencies, source, and the developer guides. In PowerShell use `Get-FileHash .\tandem_1.0.2_source.zip -Algorithm SHA256`; on Linux use `sha256sum -c SHA256SUMS`.
+Download `tandem_1.0.3_source.zip` from [v1.0.3](https://github.com/agammann/tandem-webmcp/releases/tag/v1.0.3). Verify it against `SHA256SUMS` before extracting. The ZIP contains the MIT license, frozen dependencies, source, and the developer guides. In PowerShell use `Get-FileHash .\tandem_1.0.3_source.zip -Algorithm SHA256`; on Linux use `sha256sum -c SHA256SUMS`.
 
 Open the extracted folder containing `package.json`, then run `pnpm install --frozen-lockfile`, `pnpm build`, and `pnpm preview`. Use the same browser profile and origin when updating; browser storage belongs to that origin. Keep the previous source folder until the new version has loaded your saved session and original audio. The public hosted app is maintained separately from this source release. See [the v1 support and recovery contract](docs/STABILITY.md).
 
 ## Run locally
 
-Requirements: **Node.js 24.15 or later within Node 24, or Node 26.13.1 or later within Node 26**, and **pnpm 11.19.0**. CI checks both minimum versions, including browser and clean-source consumer tests. Node 25 is not supported by the current test dependencies. The v1.0.2 source release includes this supported toolchain and verification contract.
+Requirements: **Node.js 24.15 or later within Node 24, or Node 26.13.1 or later within Node 26**, and **pnpm 11.19.0**. CI checks both minimum versions, including browser and clean-source consumer tests. Node 25 is not supported by the current test dependencies. The v1.0.3 source release includes this supported toolchain and verification contract.
 
 ```bash
 git clone https://github.com/agammann/tandem-webmcp.git

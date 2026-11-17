@@ -168,7 +168,10 @@ describe('session state machine', () => {
     expect(useTandemStore.getState()).toMatchObject({ status: 'approved', approvedProfileSaved: false });
     useTandemStore.getState().saveApprovedProfile();
     expect(useTandemStore.getState().approvedProfileSaved).toBe(true);
-    expect(exportableSession(useTandemStore.getState())).not.toHaveProperty('processedRequestIds');
+    const exported = exportableSession(useTandemStore.getState());
+    expect(exported).not.toHaveProperty('processedRequestIds');
+    expect(exported.completedTrials.map(trial => trial.requestId)).toEqual(['trial-1', 'trial-2']);
+    expect(exported.stagedFinalProfile?.requestId).toBe('final-2');
   });
 
   it('persists session data locally without audio bytes', () => {

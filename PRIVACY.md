@@ -7,7 +7,7 @@ tandem is local-first by design.
 - Audio bytes, file names, file paths, and waveform data are not sent to a server or exposed through WebMCP.
 - The session state contains EQ profiles, votes, feedback tags, optional text notes, provenance, and revision metadata. It is stored in browser local storage.
 - A SHA-256 fingerprint of a selected local file is kept only in local storage to check that the same file is reloaded. It is excluded from agent responses and JSON exports. Audio itself is held in memory only.
-- JSON export happens only after a visible human click and contains no audio bytes, fingerprint, or processed request ids. Pending blind settings are omitted; completed trials include their revealed profiles.
+- JSON export happens only after a visible human click. It excludes audio bytes, the audio fingerprint, and the internal `processedRequestIds` retry ledger. Individual `requestId` values on completed trials and the final proposal remain as provenance. Pending blind settings are omitted; completed trials include their revealed profiles. Review identifiers and notes before sharing an export.
 - tandem has no accounts, backend, database, analytics, advertising, tracking, or OpenAI API integration.
 
 Clearing browser site data removes the locally persisted session. The interface can also start a fresh session without uploading or deleting any source audio file.

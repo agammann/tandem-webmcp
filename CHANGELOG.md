@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3
+
+- Clarify the privacy contract: exports omit the internal `processedRequestIds` retry ledger, while individual completed-trial and final-proposal `requestId` values remain as provenance. Review those identifiers and notes before sharing.
+- Assert both ledger omission and retained record provenance in the existing export regression. Export bytes/schema, audio processing and session behavior are unchanged.
+
 ## 1.0.2
 
 - Deliver the current compatible dependency and Node 24/26 verification contract in a checksummed source archive.
